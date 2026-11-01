@@ -59,17 +59,16 @@ import vn.mrsbi.handout.data.Store
 import vn.mrsbi.handout.data.markDone
 import vn.mrsbi.handout.data.postpone
 import vn.mrsbi.handout.data.reopen
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.OutlinedTextField
 import vn.mrsbi.handout.data.Member
 import vn.mrsbi.handout.data.Student
 import vn.mrsbi.handout.data.saveClass
 import vn.mrsbi.handout.data.setGuests
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Wifi
+import vn.mrsbi.handout.data.ClassGroup
 import vn.mrsbi.handout.util.Format
 
 /** Main screen: the classes of the chosen day (default today) with their student counts. */
@@ -128,7 +127,9 @@ private fun SessionCard(o: Occurrence, onClick: () -> Unit) {
                 val type = if (o.group.type == ClassType.CENTER) "Trung tâm" else "Cá nhân"
                 Text(listOf(o.group.content, type).filter { it.isNotBlank() }.joinToString(" · ") + if (o.moved) " · dời từ " + Format.shortDay(o.originalDay) else "",
                     color = Color.White.copy(alpha = .85f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
+                PlaceTag(o.group, color)
+                Spacer(Modifier.height(8.dp))
                 Box(Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = .25f)).padding(horizontal = 12.dp, vertical = 5.dp)) {
                     Text(if (o.done) "✓ Đã dạy · " + Format.money(Rules.earned(o.record!!)) else "Chạm để điểm danh", color = Color.White,
                         style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
@@ -171,6 +172,8 @@ private fun AttendanceSheet(store: Store, data: AppData, o: Occurrence, onClose:
         Column(Modifier.padding(horizontal = 20.dp).navigationBarsPadding()) {
             Text(o.group.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(Format.fullDay(o.day) + " · " + Format.range(o.startMinute, o.group.durationMin), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(6.dp))
+            PlaceTag(o.group, Color(o.group.color), onBoard = false)
             Spacer(Modifier.height(4.dp))
             Text("Có mặt ${rows.count { it.first !in absent }}/${rows.size}", style = MaterialTheme.typography.labelLarge, color = Violet)
             Spacer(Modifier.height(8.dp))
@@ -226,33 +229,30 @@ private fun AttendanceSheet(store: Store, data: AppData, o: Occurrence, onClose:
 /** Pick an existing student to join this session ("học ghép"), or to join the class for good. */
 @Composable
 private fun GuestPicker(data: AppData, exclude: Set<String>, onDismiss: () -> Unit, onPick: (Student, Boolean) -> Unit) {
-    var query by remember { mutableStateOf("") }
     var keep by remember { mutableStateOf(false) }
-    val list = data.students.filter { !it.archived && it.id !in exclude && it.name.contains(query.trim(), ignoreCase = true) }.sortedBy { it.name }
-    AlertDialog(onDismissRequest = onDismiss, confirmButton = {}, dismissButton = { TextButton(onClick = onDismiss) { Text("Đóng") } },
-        title = { Text("Thêm học sinh học ghép") },
-        text = {
-            Column {
-                OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = { Text("Tìm theo tên") }, singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.Search, null) })
-                Row(Modifier.fillMaxWidth().clickable { keep = !keep }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(keep, { keep = it })
-                    Text("Thêm hẳn vào lớp (các buổi sau)", style = MaterialTheme.typography.bodyMedium)
-                }
-                if (list.isEmpty()) Text(if (data.students.isEmpty()) "Chưa có học sinh nào. Thêm ở tab Quản lý." else "Không còn học sinh nào khác.",
-                    color = Muted, modifier = Modifier.padding(vertical = 12.dp))
-                LazyColumn(Modifier.fillMaxWidth().height((56 * list.size.coerceIn(1, 6)).dp)) {
-                    items(list, key = { it.id }) { s ->
-                        Row(Modifier.fillMaxWidth().clickable { onPick(s, keep) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(s.name, style = MaterialTheme.typography.bodyLarge)
-                                Text(Format.money(s.fee) + "/buổi" + (s.age?.let { " · $it tuổi" } ?: ""), style = MaterialTheme.typography.bodySmall, color = Muted)
-                            }
-                            Icon(Icons.Default.Add, "Thêm", tint = Violet)
-                        }
-                        HorizontalDivider()
-                    }
-                }
-            }
-        })
+    StudentPickerDialog(data, exclude, "Thêm học sinh học ghép", onDismiss, header = {
+        Row(Modifier.fillMaxWidth().clickable { keep = !keep }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(keep, { keep = it })
+            Text("Thêm hẳn vào lớp (các buổi sau)", style = MaterialTheme.typography.bodyMedium)
+        }
+    }) { onPick(it, keep) }
+}
+
+/** Highlight tag: Online, or Offline with the address next to it. */
+@Composable
+fun PlaceTag(group: ClassGroup, color: Color, onBoard: Boolean = true) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        val bg = if (onBoard) Color.White else color
+        val fg = if (onBoard) color else Color.White
+        Row(Modifier.clip(RoundedCornerShape(8.dp)).background(bg).padding(horizontal = 8.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (group.online) Icons.Default.Wifi else Icons.Default.Place, null, tint = fg, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(if (group.online) "ONLINE" else "OFFLINE", color = fg, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold)
+        }
+        if (!group.online && group.address.isNotBlank()) {
+            Spacer(Modifier.width(6.dp))
+            Text(group.address, color = if (onBoard) Color.White else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
 }

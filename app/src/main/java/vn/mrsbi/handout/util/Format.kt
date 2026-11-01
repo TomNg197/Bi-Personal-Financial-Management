@@ -14,6 +14,11 @@ object Format {
 
     fun money(v: Long): String = "%,d".format(v).replace(',', '.') + "đ"
     fun time(minute: Int) = "%02d:%02d".format(minute / 60, minute % 60)
+    fun duration(minutes: Int) = when {
+        minutes < 60 -> "$minutes phút"
+        minutes % 60 == 0 -> "${minutes / 60} giờ"
+        else -> "${minutes / 60} giờ ${minutes % 60} phút"
+    }
     fun range(start: Int, duration: Int) = time(start) + " – " + time((start + duration) % (24 * 60))
     fun day(epochDay: Long): String = LocalDate.ofEpochDay(epochDay).format(dayFormat)
     fun shortDay(epochDay: Long): String = LocalDate.ofEpochDay(epochDay).format(shortDay)

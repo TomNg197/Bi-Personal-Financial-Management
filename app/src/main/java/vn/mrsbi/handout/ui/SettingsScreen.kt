@@ -67,11 +67,11 @@ fun SettingsScreen(store: Store, data: AppData) {
         HorizontalDivider()
         Text("Sao lưu Google Drive", fontWeight = FontWeight.SemiBold)
         Text(
-            if (backup == null) "Chưa chọn file sao lưu. Bấm nút dưới, chọn Google Drive và lưu file mrs-bi-backup.json. Từ đó mọi thay đổi tự ghi vào file này."
+            if (backup == null) "Chưa chọn file sao lưu. Bấm nút dưới, chọn Google Drive và lưu file just-bi-backup.json. Từ đó mọi thay đổi tự ghi vào file này."
             else "Đang sao lưu tự động vào file đã chọn.\n" + status,
             style = MaterialTheme.typography.bodyMedium,
         )
-        Button(onClick = { create.launch("mrs-bi-backup.json") }, modifier = Modifier.fillMaxWidth()) { Text(if (backup == null) "Chọn nơi sao lưu (Drive)" else "Đổi file sao lưu") }
+        Button(onClick = { create.launch("just-bi-backup.json") }, modifier = Modifier.fillMaxWidth()) { Text(if (backup == null) "Chọn nơi sao lưu (Drive)" else "Đổi file sao lưu") }
         if (backup != null) OutlinedButton(onClick = { store.backupNow() }, modifier = Modifier.fillMaxWidth()) { Text("Sao lưu ngay") }
         OutlinedButton(onClick = { pick.launch(arrayOf("application/json", "application/octet-stream", "*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Khôi phục từ file sao lưu") }
         HorizontalDivider()

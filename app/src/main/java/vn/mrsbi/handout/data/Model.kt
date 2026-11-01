@@ -42,6 +42,9 @@ data class ClassGroup(
     val startDay: Long,
     val endDay: Long? = null,
     val archived: Boolean = false,
+    /** Taught online, or offline at [address]. */
+    val online: Boolean = false,
+    val address: String = "",
 )
 
 /**

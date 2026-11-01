@@ -50,7 +50,7 @@ fun LockScreen(onUnlock: () -> Unit) {
         Column(Modifier.padding(32.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Default.Fingerprint, null, tint = Violet, modifier = Modifier.height(72.dp))
             Spacer(Modifier.height(16.dp))
-            Text("Mrs Bi Handout", style = MaterialTheme.typography.headlineSmall)
+            Text("Just Bi", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(8.dp))
             Text("Dữ liệu học phí được khoá bằng vân tay / khuôn mặt của máy.", style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.height(24.dp))

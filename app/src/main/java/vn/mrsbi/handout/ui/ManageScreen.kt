@@ -133,8 +133,7 @@ fun ManageScreen(store: Store, data: AppData) {
     editStudent?.let { s -> StudentEditor(s, isNew = data.students.none { it.id == s.id }, onSave = { store.saveStudent(it); editStudent = null },
         onDelete = { store.deleteStudent(s.id); editStudent = null }, onClose = { editStudent = null }) }
     editClass?.let { c -> ClassEditor(c, data, isNew = data.classes.none { it.id == c.id }, onSave = { store.saveClass(it); editClass = null },
-        onDelete = { store.deleteClass(c.id); editClass = null }, onClose = { editClass = null },
-        onNewStudent = { name, fee -> Student(Store.newId(), name, fee = fee).also { store.saveStudent(it) } }) }
+        onDelete = { store.deleteClass(c.id); editClass = null }, onClose = { editClass = null }) }
 }
 
 fun scheduleText(c: ClassGroup) =
@@ -184,15 +183,15 @@ private fun StudentEditor(student: Student, isNew: Boolean, onSave: (Student) ->
 @Composable
 private fun ClassEditor(
     group: ClassGroup, data: AppData, isNew: Boolean, onSave: (ClassGroup) -> Unit, onDelete: () -> Unit, onClose: () -> Unit,
-    onNewStudent: (String, Long) -> Student,
 ) {
     var c by remember { mutableStateOf(group) }
     var pickStart by remember { mutableStateOf(false) }
     var pickEnd by remember { mutableStateOf(false) }
     var pickTime by remember { mutableStateOf(false) }
+    var pickEndTime by remember { mutableStateOf(false) }
+    var pickStudent by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
-    var quickName by remember { mutableStateOf("") }
-    val students = data.students.filter { !it.archived }.sortedBy { it.name }
+    val names = data.students.associateBy { it.id }
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize().imePadding()) {
@@ -211,6 +210,14 @@ private fun ClassEditor(
                             }
                         }
                     }
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        listOf(false, true).forEachIndexed { i, online ->
+                            SegmentedButton(selected = c.online == online, onClick = { c = c.copy(online = online) }, shape = SegmentedButtonDefaults.itemShape(i, 2)) {
+                                Text(if (online) "Online" else "Offline")
+                            }
+                        }
+                    }
+                    if (!c.online) OutlinedTextField(c.address, { c = c.copy(address = it) }, label = { Text("Địa chỉ học") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     if (c.type == ClassType.CENTER) MoneyField("Tiền mỗi buổi dạy", c.centerFee, Modifier.fillMaxWidth()) { c = c.copy(centerFee = it) }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         ClassColors.forEach { col ->
@@ -232,34 +239,32 @@ private fun ClassEditor(
                                 label = { Text(Format.weekdayShort(d)) })
                         }
                     }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedButton(onClick = { pickTime = true }) { Text("Bắt đầu " + Format.time(c.startMinute)) }
+                        OutlinedButton(onClick = { pickEndTime = true }) { Text("Kết thúc " + Format.time((c.startMinute + c.durationMin) % (24 * 60))) }
+                    }
+                    Text("Thời lượng " + Format.duration(c.durationMin), style = MaterialTheme.typography.bodySmall, color = Muted)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { pickTime = true }) { Text("Giờ " + Format.time(c.startMinute)) }
                         OutlinedButton(onClick = { pickStart = true }) { Text((if (c.repeat) "Từ " else "Ngày ") + Format.shortDay(c.startDay)) }
                         if (c.repeat) OutlinedButton(onClick = { pickEnd = true }) { Text(c.endDay?.let { "Đến " + Format.shortDay(it) } ?: "Không hạn") }
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Thời lượng", Modifier.weight(1f))
-                        listOf(60, 90, 120).forEach { m -> FilterChip(selected = c.durationMin == m, onClick = { c = c.copy(durationMin = m) }, label = { Text("$m'") }, modifier = Modifier.padding(start = 6.dp)) }
                     }
                     HorizontalDivider()
                     Text("Học sinh trong lớp (" + c.members.size + ")", fontWeight = FontWeight.SemiBold)
                     if (c.type == ClassType.PERSONAL) Text("Học phí riêng từng bạn: sửa để miễn giảm.", style = MaterialTheme.typography.bodySmall)
-                    students.forEach { s ->
-                        val member = c.members.firstOrNull { it.studentId == s.id }
+                    if (c.members.isEmpty()) Text("Lớp chưa có học sinh.", style = MaterialTheme.typography.bodyMedium, color = Muted)
+                    c.members.forEach { m ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(member != null, { on ->
-                                c = c.copy(members = if (on) c.members + Member(s.id, s.fee) else c.members.filter { it.studentId != s.id })
-                            })
-                            Text(s.name, Modifier.weight(1f))
-                            if (member != null && c.type == ClassType.PERSONAL)
-                                MoneyField("Học phí", member.fee, Modifier.width(170.dp)) { fee -> c = c.copy(members = c.members.map { if (it.studentId == s.id) it.copy(fee = fee) else it }) }
+                            Text(names[m.studentId]?.name ?: "(đã xoá)", Modifier.weight(1f))
+                            if (c.type == ClassType.PERSONAL)
+                                MoneyField("Học phí", m.fee, Modifier.width(150.dp)) { fee -> c = c.copy(members = c.members.map { if (it.studentId == m.studentId) it.copy(fee = fee) else it }) }
+                            IconButton(onClick = { c = c.copy(members = c.members.filter { it.studentId != m.studentId }) }) {
+                                Icon(Icons.Default.Close, "Xoá khỏi lớp", tint = Color(0xFFEF4444))
+                            }
                         }
+                        HorizontalDivider()
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(quickName, { quickName = it }, label = { Text("Thêm nhanh học sinh mới") }, singleLine = true, modifier = Modifier.weight(1f))
-                        TextButton(enabled = quickName.isNotBlank(), onClick = {
-                            val s = onNewStudent(quickName.trim(), 0); c = c.copy(members = c.members + Member(s.id, 0)); quickName = ""
-                        }) { Text("Thêm") }
+                    OutlinedButton(onClick = { pickStudent = true }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); Text("Thêm học sinh vào lớp")
                     }
                     if (!isNew) TextButton(onClick = { confirmDelete = true }) { Text("Xoá lớp", color = Color(0xFFEF4444)) }
                     Spacer(Modifier.height(40.dp))
@@ -268,6 +273,14 @@ private fun ClassEditor(
         }
     }
     if (pickTime) TimePickerDialog(c.startMinute, { pickTime = false }) { c = c.copy(startMinute = it); pickTime = false }
+    // The end time sets the length; an end at or before the start is read as running past midnight.
+    if (pickEndTime) TimePickerDialog((c.startMinute + c.durationMin) % (24 * 60), { pickEndTime = false }) { end ->
+        val length = Math.floorMod(end - c.startMinute, 24 * 60)
+        if (length > 0) c = c.copy(durationMin = length); pickEndTime = false
+    }
+    if (pickStudent) StudentPickerDialog(data, c.members.map { it.studentId }.toSet(), "Thêm học sinh vào lớp", { pickStudent = false }) { s ->
+        c = c.copy(members = c.members + Member(s.id, s.fee))
+    }
     if (pickStart) DayPickerDialog(c.startDay, { pickStart = false }) { c = c.copy(startDay = it); pickStart = false }
     if (pickEnd) DayPickerDialog(c.endDay ?: c.startDay, { pickEnd = false }) { c = c.copy(endDay = it); pickEnd = false }
     if (confirmDelete) AlertDialog(onDismissRequest = { confirmDelete = false }, title = { Text("Xoá lớp " + c.name + "?") },

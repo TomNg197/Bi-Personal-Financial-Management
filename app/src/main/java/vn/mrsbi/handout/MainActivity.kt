@@ -52,7 +52,7 @@ class MainActivity : FragmentActivity() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { unlocked.value = true }
         })
         prompt.authenticate(BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Mrs Bi Handout")
+            .setTitle("Just Bi")
             .setSubtitle("Mở khoá bằng vân tay hoặc khuôn mặt")
             .setAllowedAuthenticators(BIOMETRIC_WEAK or DEVICE_CREDENTIAL)
             .build())
