@@ -4,11 +4,14 @@ import android.content.Context
 import android.net.Uri
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import vn.mrsbi.handout.util.SheetSync
 import java.io.File
 import java.util.UUID
 
@@ -23,6 +26,19 @@ class Store(private val context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _data = MutableStateFlow(load())
     val data: StateFlow<AppData> = _data
+
+    /** Monthly fee tabs on the user's Google Sheet (Apps Script). Synced a few seconds after the last change. */
+    val sheet = SheetSync(context)
+    private val _sheetStatus = MutableStateFlow(sheet.status)
+    val sheetStatus: StateFlow<String> = _sheetStatus
+    private var sheetJob: Job? = null
+
+    fun syncSheet(force: Boolean = false, delayMs: Long = 0) {
+        if (!sheet.configured) return
+        sheetJob?.cancel()
+        val snapshot = _data.value
+        sheetJob = scope.launch { if (delayMs > 0) delay(delayMs); _sheetStatus.value = "Đang cập nhật Google Sheet…"; _sheetStatus.value = sheet.sync(snapshot, force) }
+    }
 
     private val _backupStatus = MutableStateFlow(prefs.getString("backupStatus", "") ?: "")
     val backupStatus: StateFlow<String> = _backupStatus
@@ -43,6 +59,7 @@ class Store(private val context: Context) {
         val tmp = File(file.parentFile, "data.json.tmp")
         tmp.writeText(text); tmp.renameTo(file)
         backupUri?.let { uri -> scope.launch { writeBackup(uri, text) } }
+        syncSheet(delayMs = 4000)
     }
 
     private fun writeBackup(uri: Uri, text: String) {

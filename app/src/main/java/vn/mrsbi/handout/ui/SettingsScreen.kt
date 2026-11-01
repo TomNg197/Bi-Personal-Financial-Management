@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,9 @@ fun SettingsScreen(store: Store, data: AppData) {
     val status by store.backupStatus.collectAsState()
     var confirmRestore by remember { mutableStateOf<android.net.Uri?>(null) }
     var checkUpdate by remember { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
+    val sheetStatus by store.sheetStatus.collectAsState()
+    var sheetReady by remember { mutableStateOf(store.sheet.configured) }
     val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
     // Create (or pick) the backup file on Google Drive once; the permission is kept so every later change is mirrored there.
     val create = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -70,6 +74,17 @@ fun SettingsScreen(store: Store, data: AppData) {
         Button(onClick = { create.launch("mrs-bi-backup.json") }, modifier = Modifier.fillMaxWidth()) { Text(if (backup == null) "Chọn nơi sao lưu (Drive)" else "Đổi file sao lưu") }
         if (backup != null) OutlinedButton(onClick = { store.backupNow() }, modifier = Modifier.fillMaxWidth()) { Text("Sao lưu ngay") }
         OutlinedButton(onClick = { pick.launch(arrayOf("application/json", "application/octet-stream", "*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Khôi phục từ file sao lưu") }
+        HorizontalDivider()
+        Text("Google Sheet học phí (mỗi tháng 1 tab)", fontWeight = FontWeight.SemiBold)
+        Text(if (sheetReady) "Tự cập nhật vài giây sau mỗi lần Xong buổi / tick đã thu.\n" + sheetStatus
+            else "Copy dòng cấu hình (link|mã) được gửi riêng, rồi bấm nút dưới.", style = MaterialTheme.typography.bodyMedium)
+        Button(onClick = {
+            val ok = store.sheet.importConfig(clipboard.getText()?.text ?: "")
+            sheetReady = store.sheet.configured
+            Toast.makeText(context, if (ok) "Đã lưu cấu hình Google Sheet" else "Clipboard không phải dòng cấu hình hợp lệ", Toast.LENGTH_LONG).show()
+            if (ok) store.syncSheet(force = true)
+        }, modifier = Modifier.fillMaxWidth()) { Text(if (sheetReady) "Dán lại cấu hình Google Sheet" else "Dán cấu hình Google Sheet") }
+        if (sheetReady) OutlinedButton(onClick = { store.syncSheet(force = true) }, modifier = Modifier.fillMaxWidth()) { Text("Cập nhật Google Sheet ngay") }
         HorizontalDivider()
         Text("Dữ liệu: ${data.students.count { !it.archived }} học sinh · ${data.classes.count { !it.archived }} lớp · ${data.sessions.count { it.done }} buổi đã dạy",
             style = MaterialTheme.typography.bodyMedium)

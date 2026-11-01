@@ -59,6 +59,8 @@ data class SessionRecord(
     /** Money earned when marked done: studentId → fee for personal classes, [CENTER_KEY] → fee for center classes. */
     val charges: Map<String, Long> = emptyMap(),
     val doneAt: Long? = null,
+    /** Students joining only this session ("học ghép"): studentId → fee for this session. */
+    val guests: Map<String, Long> = emptyMap(),
 ) {
     companion object { const val CENTER_KEY = "#class" }
 }

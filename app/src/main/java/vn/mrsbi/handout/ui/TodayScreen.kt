@@ -59,6 +59,17 @@ import vn.mrsbi.handout.data.Store
 import vn.mrsbi.handout.data.markDone
 import vn.mrsbi.handout.data.postpone
 import vn.mrsbi.handout.data.reopen
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.OutlinedTextField
+import vn.mrsbi.handout.data.Member
+import vn.mrsbi.handout.data.Student
+import vn.mrsbi.handout.data.saveClass
+import vn.mrsbi.handout.data.setGuests
 import vn.mrsbi.handout.util.Format
 
 /** Main screen: the classes of the chosen day (default today) with their student counts. */
@@ -69,15 +80,15 @@ fun TodayScreen(store: Store, data: AppData, openManage: () -> Unit) {
     val list = Rules.occurrencesOn(data, day)
     val earned = list.mapNotNull { it.record }.sumOf { Rules.earned(it) }
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { day-- }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Hôm trước") }
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(if (day == Format.today()) "Hôm nay" else Format.weekday(day), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text(Format.day(day), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(if (day == Format.today()) "Hôm nay" else Format.weekday(day), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = Violet)
+                Text(Format.day(day), style = MaterialTheme.typography.bodyMedium, color = Muted)
             }
+            IconButton(onClick = { day-- }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Hôm trước") }
             IconButton(onClick = { day++ }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Hôm sau") }
         }
-        if (day != Format.today()) TextButton(onClick = { day = Format.today() }, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Về hôm nay") }
+        if (day != Format.today()) TextButton(onClick = { day = Format.today() }, modifier = Modifier.padding(start = 4.dp)) { Text("← Về hôm nay") }
         Text(
             "${list.size} lớp · ${list.sumOf { studentsOf(it) }} học sinh · đã dạy ${list.count { it.done }}/${list.size}" + if (earned > 0) " · " + Format.money(earned) else "",
             Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -89,7 +100,7 @@ fun TodayScreen(store: Store, data: AppData, openManage: () -> Unit) {
                     if (data.classes.isEmpty()) { Spacer(Modifier.height(8.dp)); Button(onClick = openManage) { Text("Thêm lớp đầu tiên") } }
                 }
             }
-        } else LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        } else LazyColumn(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { Spacer(Modifier.height(4.dp)) }
             items(list, key = { it.key }) { o -> SessionCard(o, onClick = { opened = o.key }) }
             item { Spacer(Modifier.height(12.dp)) }
@@ -99,35 +110,46 @@ fun TodayScreen(store: Store, data: AppData, openManage: () -> Unit) {
     if (current != null) AttendanceSheet(store, data, current, onClose = { opened = null })
 }
 
-fun studentsOf(o: Occurrence) = if (o.group.type == ClassType.CENTER && o.group.members.isEmpty()) 0 else o.group.members.size
+fun studentsOf(o: Occurrence) = o.group.members.size + (o.record?.guests?.keys?.count { id -> o.group.members.none { it.studentId == id } } ?: 0)
 
+/** Each class is a colour board (its own colour, soft gradient) so classes are easy to tell apart at a glance. */
 @Composable
 private fun SessionCard(o: Occurrence, onClick: () -> Unit) {
     val color = Color(o.group.color)
+    val brush = androidx.compose.ui.graphics.Brush.linearGradient(listOf(color, lerpColor(color, Color.White, .28f)))
     Card(
-        Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = if (o.done) MaterialTheme.colorScheme.surfaceVariant else Color.White),
-        shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(2.dp),
+        Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent), elevation = CardDefaults.cardElevation(if (o.done) 0.dp else 3.dp),
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(6.dp).height(52.dp).clip(RoundedCornerShape(3.dp)).background(color))
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(Format.range(o.startMinute, o.group.durationMin), style = MaterialTheme.typography.labelLarge, color = color, fontWeight = FontWeight.Bold)
-                Text(o.group.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Box(Modifier.fillMaxWidth().background(brush).padding(16.dp)) {
+            Column(Modifier.fillMaxWidth().padding(end = 64.dp)) {
+                Text(Format.range(o.startMinute, o.group.durationMin), color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text(o.group.name, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val type = if (o.group.type == ClassType.CENTER) "Trung tâm" else "Cá nhân"
                 Text(listOf(o.group.content, type).filter { it.isNotBlank() }.joinToString(" · ") + if (o.moved) " · dời từ " + Format.shortDay(o.originalDay) else "",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.size(44.dp).clip(CircleShape).background(color.copy(alpha = .15f)), contentAlignment = Alignment.Center) {
-                    Text(studentsOf(o).toString(), color = color, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    color = Color.White.copy(alpha = .85f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(10.dp))
+                Box(Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = .25f)).padding(horizontal = 12.dp, vertical = 5.dp)) {
+                    Text(if (o.done) "✓ Đã dạy · " + Format.money(Rules.earned(o.record!!)) else "Chạm để điểm danh", color = Color.White,
+                        style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                 }
-                Text("HS", style = MaterialTheme.typography.labelSmall)
             }
-            if (o.done) { Spacer(Modifier.width(8.dp)); Icon(Icons.Default.CheckCircle, "Đã dạy", tint = Color(0xFF10B981)) }
+            Column(Modifier.align(Alignment.CenterEnd), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.size(54.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
+                    Text(studentsOf(o).toString(), color = color, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleLarge)
+                }
+                Text("học sinh", color = Color.White, style = MaterialTheme.typography.labelSmall)
+            }
+            if (o.done) Box(Modifier.matchParentSize().background(Color.White.copy(alpha = .25f)))
         }
     }
+}
+
+fun lerpColor(a: Color, b: Color, t: Float) = Color(a.red + (b.red - a.red) * t, a.green + (b.green - a.green) * t, a.blue + (b.blue - a.blue) * t, 1f)
+
+fun initials(name: String): String {
+    val words = name.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+    return when { words.isEmpty() -> "?"; words.size == 1 -> words[0].take(2).uppercase(); else -> (words[0].take(1) + words[1].take(1)).uppercase() }
 }
 
 /** Attendance: everyone present by default; "Xong buổi" books the money, "Hoãn" moves only this session. */
@@ -136,33 +158,47 @@ private fun SessionCard(o: Occurrence, onClick: () -> Unit) {
 private fun AttendanceSheet(store: Store, data: AppData, o: Occurrence, onClose: () -> Unit) {
     val names = data.students.associateBy { it.id }
     var absent by remember(o.key) { mutableStateOf(o.record?.absent?.toSet() ?: emptySet()) }
+    var guests by remember(o.key) { mutableStateOf(o.record?.guests ?: emptyMap()) }
     var pickDay by remember { mutableStateOf(false) }
     var newDay by remember { mutableLongStateOf(o.day) }
     var pickTime by remember { mutableStateOf(false) }
-    val amount = Rules.charges(o.group, absent).values.sum()
+    var pickGuest by remember { mutableStateOf(false) }
+    // Class members first, then this session's "học ghép" students.
+    val rows = o.group.members.map { Triple(it.studentId, it.fee, false) } +
+        guests.filterKeys { id -> o.group.members.none { it.studentId == id } }.map { Triple(it.key, it.value, true) }
+    val amount = Rules.charges(o.group, absent, guests).values.sum()
     ModalBottomSheet(onDismissRequest = onClose) {
         Column(Modifier.padding(horizontal = 20.dp).navigationBarsPadding()) {
             Text(o.group.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(Format.fullDay(o.day) + " · " + Format.range(o.startMinute, o.group.durationMin), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(12.dp))
-            if (o.group.members.isEmpty()) Text("Lớp chưa có học sinh. Thêm ở tab Quản lý.", style = MaterialTheme.typography.bodyMedium)
-            LazyColumn(Modifier.fillMaxWidth().height((56 * o.group.members.size.coerceIn(1, 7)).dp)) {
-                items(o.group.members, key = { it.studentId }) { m ->
-                    val present = m.studentId !in absent
-                    Row(Modifier.fillMaxWidth().clickable(enabled = !o.done) { absent = if (present) absent + m.studentId else absent - m.studentId }.padding(vertical = 6.dp),
+            Spacer(Modifier.height(4.dp))
+            Text("Có mặt ${rows.count { it.first !in absent }}/${rows.size}", style = MaterialTheme.typography.labelLarge, color = Violet)
+            Spacer(Modifier.height(8.dp))
+            if (rows.isEmpty()) Text("Lớp chưa có học sinh. Thêm ở tab Quản lý hoặc bấm “Thêm học sinh học ghép”.", style = MaterialTheme.typography.bodyMedium)
+            LazyColumn(Modifier.fillMaxWidth().height((60 * rows.size.coerceIn(1, 7)).dp)) {
+                items(rows, key = { it.first }) { (id, fee, guest) ->
+                    val present = id !in absent
+                    Row(Modifier.fillMaxWidth().clickable(enabled = !o.done) { absent = if (present) absent + id else absent - id }.padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(names[m.studentId]?.name ?: "(đã xoá)", style = MaterialTheme.typography.bodyLarge)
-                            if (o.group.type == ClassType.PERSONAL) Text(Format.money(m.fee) + "/buổi", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(names[id]?.name ?: "(đã xoá)", style = MaterialTheme.typography.bodyLarge)
+                            val info = listOfNotNull(if (guest) "học ghép" else null, if (o.group.type == ClassType.PERSONAL) Format.money(fee) + "/buổi" else null)
+                            if (info.isNotEmpty()) Text(info.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = if (guest) Rose else MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (guest && !o.done) IconButton(onClick = { guests = guests - id; absent = absent - id; store.setGuests(o, guests) }) {
+                            Icon(Icons.Default.Close, "Bỏ học ghép", tint = Muted)
                         }
                         Text(if (present) "Có mặt" else "Vắng", color = if (present) Color(0xFF10B981) else Color(0xFFEF4444), style = MaterialTheme.typography.labelLarge)
                         Spacer(Modifier.width(8.dp))
-                        Switch(checked = present, enabled = !o.done, onCheckedChange = { absent = if (it) absent - m.studentId else absent + m.studentId })
+                        Switch(checked = present, enabled = !o.done, onCheckedChange = { absent = if (it) absent - id else absent + id })
                     }
                     HorizontalDivider()
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            if (!o.done) TextButton(onClick = { pickGuest = true }) {
+                Icon(Icons.Default.PersonAdd, null); Spacer(Modifier.width(8.dp)); Text("Thêm học sinh học ghép")
+            }
+            Spacer(Modifier.height(8.dp))
             if (o.done) {
                 AssistChip(onClick = {}, label = { Text("Đã dạy · " + Format.money(Rules.earned(o.record!!))) }, leadingIcon = { Icon(Icons.Default.CheckCircle, null) })
                 OutlinedButton(onClick = { store.reopen(o); onClose() }, modifier = Modifier.fillMaxWidth()) { Text("Mở lại buổi (bấm nhầm)") }
@@ -178,6 +214,45 @@ private fun AttendanceSheet(store: Store, data: AppData, o: Occurrence, onClose:
             Spacer(Modifier.height(20.dp))
         }
     }
+    if (pickGuest) GuestPicker(data, exclude = rows.map { it.first }.toSet(), onDismiss = { pickGuest = false }) { student, keep ->
+        pickGuest = false
+        if (keep) store.saveClass(o.group.copy(members = o.group.members + Member(student.id, student.fee)))
+        else { guests = guests + (student.id to student.fee); store.setGuests(o, guests) }
+    }
     if (pickDay) DayPickerDialog(o.day, onDismiss = { pickDay = false }) { newDay = it; pickDay = false; pickTime = true }
     if (pickTime) TimePickerDialog(o.startMinute, onDismiss = { pickTime = false }) { minute -> pickTime = false; store.postpone(o, newDay, minute); onClose() }
+}
+
+/** Pick an existing student to join this session ("học ghép"), or to join the class for good. */
+@Composable
+private fun GuestPicker(data: AppData, exclude: Set<String>, onDismiss: () -> Unit, onPick: (Student, Boolean) -> Unit) {
+    var query by remember { mutableStateOf("") }
+    var keep by remember { mutableStateOf(false) }
+    val list = data.students.filter { !it.archived && it.id !in exclude && it.name.contains(query.trim(), ignoreCase = true) }.sortedBy { it.name }
+    AlertDialog(onDismissRequest = onDismiss, confirmButton = {}, dismissButton = { TextButton(onClick = onDismiss) { Text("Đóng") } },
+        title = { Text("Thêm học sinh học ghép") },
+        text = {
+            Column {
+                OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = { Text("Tìm theo tên") }, singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.Search, null) })
+                Row(Modifier.fillMaxWidth().clickable { keep = !keep }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(keep, { keep = it })
+                    Text("Thêm hẳn vào lớp (các buổi sau)", style = MaterialTheme.typography.bodyMedium)
+                }
+                if (list.isEmpty()) Text(if (data.students.isEmpty()) "Chưa có học sinh nào. Thêm ở tab Quản lý." else "Không còn học sinh nào khác.",
+                    color = Muted, modifier = Modifier.padding(vertical = 12.dp))
+                LazyColumn(Modifier.fillMaxWidth().height((56 * list.size.coerceIn(1, 6)).dp)) {
+                    items(list, key = { it.id }) { s ->
+                        Row(Modifier.fillMaxWidth().clickable { onPick(s, keep) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(s.name, style = MaterialTheme.typography.bodyLarge)
+                                Text(Format.money(s.fee) + "/buổi" + (s.age?.let { " · $it tuổi" } ?: ""), style = MaterialTheme.typography.bodySmall, color = Muted)
+                            }
+                            Icon(Icons.Default.Add, "Thêm", tint = Violet)
+                        }
+                        HorizontalDivider()
+                    }
+                }
+            }
+        })
 }

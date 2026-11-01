@@ -3,6 +3,7 @@ package vn.mrsbi.handout.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarViewWeek
 import androidx.compose.material.icons.filled.Groups
@@ -46,11 +47,14 @@ private val tabs = listOf(
 fun App(store: Store) {
     val data by store.data.collectAsState()
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) { store.syncSheet() }   // catch up on changes made while offline
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            NavigationBar(containerColor = androidx.compose.ui.graphics.Color.White, tonalElevation = 0.dp) {
                 tabs.forEachIndexed { i, t ->
-                    NavigationBarItem(selected = tab == i, onClick = { tab = i }, icon = { Icon(t.icon, null) }, label = { Text(t.title) })
+                    NavigationBarItem(selected = tab == i, onClick = { tab = i }, icon = { Icon(t.icon, t.title, Modifier.size(24.dp)) }, label = { Text(t.title) },
+                        colors = androidx.compose.material3.NavigationBarItemDefaults.colors(selectedIconColor = Violet, selectedTextColor = Violet,
+                            unselectedIconColor = Muted, unselectedTextColor = Muted, indicatorColor = androidx.compose.ui.graphics.Color(0xFFE9E2FF)))
                 }
             }
         },

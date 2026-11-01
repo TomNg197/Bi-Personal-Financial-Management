@@ -1,7 +1,7 @@
 <resources>
     <style name="Theme.MrsBi" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">#FFF7F2FB</item>
+        <item name="android:statusBarColor">#FFF6F3FF</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:navigationBarColor">#FFF7F2FB</item>
+        <item name="android:navigationBarColor">#FFF6F3FF</item>
     </style>
 </resources>

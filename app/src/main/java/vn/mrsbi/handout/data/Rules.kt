@@ -47,9 +47,9 @@ object Rules {
     }
 
     /** What a session earns when marked done with these absent students. */
-    fun charges(group: ClassGroup, absent: Set<String>): Map<String, Long> =
+    fun charges(group: ClassGroup, absent: Set<String>, guests: Map<String, Long> = emptyMap()): Map<String, Long> =
         if (group.type == ClassType.CENTER) mapOf(SessionRecord.CENTER_KEY to group.centerFee)
-        else group.members.filter { it.studentId !in absent }.associate { it.studentId to it.fee }
+        else (group.members.associate { it.studentId to it.fee } + guests).filterKeys { it !in absent }
 
     fun earned(record: SessionRecord) = if (record.done) record.charges.values.sum() else 0L
 

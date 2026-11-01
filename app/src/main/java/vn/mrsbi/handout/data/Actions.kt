@@ -35,8 +35,14 @@ private fun AppData.withRecord(record: SessionRecord) = copy(
 )
 
 fun Store.markDone(o: Occurrence, absent: Set<String>) = update { d ->
-    val base = o.record ?: SessionRecord(o.group.id, o.originalDay, o.day, o.startMinute)
-    d.withRecord(base.copy(done = true, absent = absent.toList(), charges = Rules.charges(o.group, absent), doneAt = System.currentTimeMillis()))
+    val base = d.sessions.firstOrNull { it.classId == o.group.id && it.originalDay == o.originalDay } ?: SessionRecord(o.group.id, o.originalDay, o.day, o.startMinute)
+    d.withRecord(base.copy(done = true, absent = absent.toList(), charges = Rules.charges(o.group, absent, base.guests), doneAt = System.currentTimeMillis()))
+}
+
+/** "Học ghép": a student joins only this session (kept on the session, not on the class). */
+fun Store.setGuests(o: Occurrence, guests: Map<String, Long>) = update { d ->
+    val base = d.sessions.firstOrNull { it.classId == o.group.id && it.originalDay == o.originalDay } ?: SessionRecord(o.group.id, o.originalDay, o.day, o.startMinute)
+    d.withRecord(base.copy(guests = guests))
 }
 
 fun Store.reopen(o: Occurrence) = update { d ->

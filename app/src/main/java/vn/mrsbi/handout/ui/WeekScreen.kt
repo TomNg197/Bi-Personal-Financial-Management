@@ -56,7 +56,7 @@ fun WeekScreen(store: Store, data: AppData) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { monday -= 7 }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Tuần trước") }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Thời khoá biểu", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Thời khoá biểu", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = Violet)
                 Text(Format.day(days.first()) + " – " + Format.day(days.last()) + " · " + all.size + " buổi", style = MaterialTheme.typography.bodyMedium)
             }
             IconButton(onClick = { monday += 7 }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Tuần sau") }
@@ -65,8 +65,8 @@ fun WeekScreen(store: Store, data: AppData) {
             days.forEach { d ->
                 val today = d == Format.today()
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(Format.weekdayShort(LocalDate.ofEpochDay(d).dayOfWeek.value), fontWeight = FontWeight.Bold, color = if (today) Pink else Color.Unspecified)
-                    Text(Format.shortDay(d), style = MaterialTheme.typography.labelSmall, color = if (today) Pink else MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(Format.weekdayShort(LocalDate.ofEpochDay(d).dayOfWeek.value), fontWeight = FontWeight.Bold, color = if (today) Violet else Color.Unspecified)
+                    Text(Format.shortDay(d), style = MaterialTheme.typography.labelSmall, color = if (today) Violet else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -77,14 +77,16 @@ fun WeekScreen(store: Store, data: AppData) {
             }
             days.forEach { d ->
                 Box(Modifier.weight(1f).height(hourHeight * (lastHour - firstHour)).border(0.5.dp, MaterialTheme.colorScheme.surfaceVariant)
-                    .background(if (d == Format.today()) Pink.copy(alpha = .05f) else Color.Transparent)) {
+                    .background(if (d == Format.today()) Violet.copy(alpha = .08f) else Color.White)) {
                     for (h in 1 until lastHour - firstHour) Box(Modifier.fillMaxWidth().height(0.5.dp).offset(y = hourHeight * h).background(MaterialTheme.colorScheme.surfaceVariant))
                     week.getValue(d).forEach { o ->
                         val top = hourHeight * ((o.startMinute - firstHour * 60) / 60f)
                         val height = hourHeight * (o.group.durationMin / 60f)
                         val color = Color(o.group.color)
-                        Box(Modifier.offset(y = top).padding(horizontal = 1.dp).fillMaxWidth().height(height).clip(RoundedCornerShape(6.dp))
-                            .background(if (o.done) color.copy(alpha = .35f) else color.copy(alpha = .85f)).padding(3.dp)) {
+                        // Board per class: its own colour as a soft vertical gradient; taught sessions fade.
+                        val board = androidx.compose.ui.graphics.Brush.verticalGradient(listOf(color, lerpColor(color, Color.White, .25f)))
+                        Box(Modifier.offset(y = top).padding(horizontal = 2.dp, vertical = 1.dp).fillMaxWidth().height(height).clip(RoundedCornerShape(8.dp))
+                            .background(board).background(if (o.done) Color.White.copy(alpha = .45f) else Color.Transparent).padding(4.dp)) {
                             Column(Modifier.fillMaxHeight()) {
                                 Text(Format.time(o.startMinute), fontSize = 9.sp, color = Color.White, fontWeight = FontWeight.Bold)
                                 Text(o.group.name, fontSize = 10.sp, color = Color.White, lineHeight = 11.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)

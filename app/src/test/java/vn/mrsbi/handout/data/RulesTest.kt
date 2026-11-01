@@ -61,4 +61,16 @@ class RulesTest {
         val s = Rules.monthSummary(d, YearMonth.of(2026, 11))
         assertEquals(300_000L, s.paid); assertEquals(0L, s.unpaid)
     }
+
+    @Test fun guestJoinsOneSessionAndIsCharged() {
+        val o = Rules.occurrencesOn(base(), monday).first { it.group.id == "p" }
+        val guest = Student("g", "Giang", fee = 120_000)
+        var d = base().copy(students = students + guest)
+        val charges = Rules.charges(o.group, setOf("a"), mapOf("g" to 120_000L))
+        d = d.copy(sessions = listOf(SessionRecord("p", o.originalDay, o.day, o.startMinute, done = true, absent = listOf("a"), charges = charges, guests = mapOf("g" to 120_000L))))
+        val s = Rules.monthSummary(d, YearMonth.of(2026, 11))
+        assertEquals(120_000L, s.lines.first { it.key == "s:g" }.amount)
+        assertEquals(0L, s.lines.first { it.key == "s:a" }.amount)
+        assertEquals(150_000L * 2 + 50_000 + 120_000, s.total)
+    }
 }

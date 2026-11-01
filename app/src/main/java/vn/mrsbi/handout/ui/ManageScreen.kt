@@ -89,7 +89,9 @@ fun ManageScreen(store: Store, data: AppData) {
             if (tab == 0) LazyColumn(Modifier.fillMaxSize()) {
                 items(data.classes.filter { !it.archived }, key = { it.id }) { c ->
                     Row(Modifier.fillMaxWidth().clickable { editClass = c }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(14.dp).clip(CircleShape).background(Color(c.color)))
+                        Box(Modifier.size(42.dp).clip(CircleShape).background(Color(c.color)), contentAlignment = Alignment.Center) {
+                            Text(initials(c.name), color = Color.White, fontWeight = FontWeight.Bold)
+                        }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(c.name, fontWeight = FontWeight.SemiBold)
@@ -97,12 +99,16 @@ fun ManageScreen(store: Store, data: AppData) {
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    HorizontalDivider()
+                    HorizontalDivider(color = Hairline)
                 }
                 item { Spacer(Modifier.height(96.dp)) }
             } else LazyColumn(Modifier.fillMaxSize()) {
                 items(data.students.filter { !it.archived }.sortedBy { it.name }, key = { it.id }) { s ->
-                    Row(Modifier.fillMaxWidth().clickable { editStudent = s }.padding(16.dp)) {
+                    Row(Modifier.fillMaxWidth().clickable { editStudent = s }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(42.dp).clip(CircleShape).background(Color(0xFFE9E2FF)), contentAlignment = Alignment.Center) {
+                            Text(initials(s.name), color = Violet, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(s.name, fontWeight = FontWeight.SemiBold)
                             val classes = data.classes.filter { c -> !c.archived && c.members.any { it.studentId == s.id } }.joinToString(", ") { it.name }
@@ -110,7 +116,7 @@ fun ManageScreen(store: Store, data: AppData) {
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    HorizontalDivider()
+                    HorizontalDivider(color = Hairline)
                 }
                 item { Spacer(Modifier.height(96.dp)) }
             }

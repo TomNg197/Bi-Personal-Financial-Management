@@ -20,16 +20,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-val Pink = Color(0xFFE85D8E)
+/** Colourful but calm: violet → pink accents on a soft lilac background; each class keeps its own board colour. */
+val Ink = Color(0xFF1D1B2F)
+val Violet = Color(0xFF7C5CFC)
+val Rose = Color(0xFFE85D8E)
+val Muted = Color(0xFF7A7690)
+val Hairline = Color(0xFFECE8F7)
+val Lilac = Color(0xFFF6F3FF)
 val ClassColors = listOf(0xFFE85D8E, 0xFF7C5CFC, 0xFF2BB3A3, 0xFFF59E0B, 0xFF3B82F6, 0xFF10B981, 0xFFEF4444, 0xFF8B5E3C)
 
 @Composable
 fun MrsBiTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = lightColorScheme(
-            primary = Pink, onPrimary = Color.White, primaryContainer = Color(0xFFFFD9E4), onPrimaryContainer = Color(0xFF3E001D),
-            secondary = Color(0xFF7C5CFC), background = Color(0xFFFFF7FA), surface = Color(0xFFFFF7FA),
-            surfaceVariant = Color(0xFFF6E8EE), surfaceContainer = Color(0xFFFBEFF4),
+            primary = Violet, onPrimary = Color.White, primaryContainer = Color(0xFFE9E2FF), onPrimaryContainer = Color(0xFF2A1670),
+            secondary = Rose, onSecondary = Color.White, secondaryContainer = Color(0xFFFFDDE8), onSecondaryContainer = Color(0xFF5A0F2E),
+            background = Lilac, onBackground = Ink, surface = Lilac, onSurface = Ink,
+            surfaceVariant = Color(0xFFEDE8FA), onSurfaceVariant = Muted, outline = Color(0xFFCFC8E6), outlineVariant = Hairline,
+            surfaceContainer = Color.White, surfaceContainerLow = Color.White, surfaceContainerHigh = Color(0xFFF3EFFF),
+            surfaceContainerHighest = Color(0xFFEDE8FA), surfaceContainerLowest = Color.White,
         ),
         content = content,
     )
@@ -39,7 +48,7 @@ fun MrsBiTheme(content: @Composable () -> Unit) {
 fun LockScreen(onUnlock: () -> Unit) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.padding(32.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.Fingerprint, null, tint = Pink, modifier = Modifier.height(72.dp))
+            Icon(Icons.Default.Fingerprint, null, tint = Violet, modifier = Modifier.height(72.dp))
             Spacer(Modifier.height(16.dp))
             Text("Mrs Bi Handout", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(8.dp))

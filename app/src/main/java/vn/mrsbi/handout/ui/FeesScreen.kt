@@ -71,7 +71,7 @@ fun FeesScreen(store: Store, data: AppData) {
             IconButton(onClick = { export.launch("hoc-phi-" + month + ".csv") }) { Icon(Icons.Default.FileDownload, "Xuất CSV") }
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Stat("Phải thu", summary.total, Pink, Modifier.weight(1f))
+            Stat("Phải thu", summary.total, Violet, Modifier.weight(1f))
             Stat("Đã thu", summary.paid, Color(0xFF10B981), Modifier.weight(1f))
             Stat("Còn lại", summary.unpaid, Color(0xFFF59E0B), Modifier.weight(1f))
         }
