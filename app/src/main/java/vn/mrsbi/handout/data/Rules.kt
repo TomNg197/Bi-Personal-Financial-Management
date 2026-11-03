@@ -48,6 +48,10 @@ object Rules {
         return result.sortedBy { it.startMinute }
     }
 
+    /** The first session after [day] (looking ahead up to [days] days), for the "next class" card on a free day. */
+    fun nextOccurrence(data: AppData, day: Long, days: Int = 60): Occurrence? =
+        (1..days).asSequence().map { day + it }.firstNotNullOfOrNull { d -> occurrencesOn(data, d).firstOrNull() }
+
     /** What a session earns when marked done with these absent students. */
     fun charges(group: ClassGroup, absent: Set<String>, guests: Map<String, Long> = emptyMap()): Map<String, Long> =
         if (group.type == ClassType.CENTER) mapOf(SessionRecord.CENTER_KEY to group.centerFee)
@@ -85,6 +89,19 @@ object Rules {
             lines += FeeLine(key, group.name, group.content.ifBlank { "Lớp trung tâm" }, taught.size, 0, taught.sumOf { earned(it) }, paid[key])
         }
         return MonthSummary(lines)
+    }
+
+    /** Text the teacher sends to a parent (or a centre) after the month is closed. */
+    fun feeMessage(data: AppData, line: FeeLine, month: YearMonth): String {
+        val m = month.monthValue
+        val records = data.sessions.filter { it.done && inMonth(it.day, month) }
+        val prices = if (line.key.startsWith("s:")) records.mapNotNull { it.charges[line.key.removePrefix("s:")] }
+            else records.filter { it.classId == line.key.removePrefix("c:") }.map { earned(it) }
+        val money = { v: Long -> "%,d".format(v).replace(',', '.') + "đ" }
+        val how = if (prices.isNotEmpty() && prices.distinct().size == 1) "${line.present} buổi × ${money(prices.first())} = ${money(line.amount)}"
+            else "${line.present} buổi = ${money(line.amount)}"
+        return if (line.key.startsWith("s:")) "Học phí tháng $m của ${line.title}: $how. Vắng ${line.absent} buổi."
+            else "Học phí tháng $m lớp ${line.title}: $how."
     }
 
     /** Every taught session of one student in a month: day, class, present?, amount. */

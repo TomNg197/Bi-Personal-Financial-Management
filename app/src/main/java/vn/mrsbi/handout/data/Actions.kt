@@ -61,6 +61,10 @@ fun Store.postpone(o: Occurrence, newDay: Long, newMinute: Int) = update { d ->
     d.withRecord(base.copy(day = newDay, startMinute = newMinute))
 }
 
+fun Store.closeMonth(month: YearMonth) = update { d -> d.copy(closedMonths = d.closedMonths + (Rules.monthKey(month) to System.currentTimeMillis())) }
+
+fun Store.reopenMonth(month: YearMonth) = update { d -> d.copy(closedMonths = d.closedMonths - Rules.monthKey(month)) }
+
 fun Store.setPaid(month: YearMonth, key: String, paid: Boolean) = update { d ->
     val m = Rules.monthKey(month)
     val others = d.payments.filterNot { it.month == m && it.key == key }

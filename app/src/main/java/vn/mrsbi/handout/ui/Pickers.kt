@@ -81,15 +81,15 @@ fun StudentPickerDialog(data: AppData, exclude: Set<String>, title: String, onDi
                     leadingIcon = { Icon(Icons.Default.Search, null) })
                 header()
                 if (list.isEmpty()) Text(if (data.students.none { !it.archived }) "Chưa có học sinh nào. Thêm ở tab Quản lý → Học sinh trước." else "Không còn học sinh nào khác.",
-                    color = Muted, modifier = Modifier.padding(vertical = 12.dp))
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 12.dp))
                 LazyColumn(Modifier.fillMaxWidth().height((56 * list.size.coerceIn(1, 6)).dp)) {
                     items(list, key = { it.id }) { s ->
                         Row(Modifier.fillMaxWidth().clickable { onPick(s) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(s.name, style = MaterialTheme.typography.bodyLarge)
-                                Text(Format.money(s.fee) + "/buổi" + (s.age?.let { " · $it tuổi" } ?: ""), style = MaterialTheme.typography.bodySmall, color = Muted)
+                                Text(Format.money(s.fee) + "/buổi" + (s.age?.let { " · $it tuổi" } ?: ""), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Icon(Icons.Default.Add, "Thêm", tint = Violet)
+                            Icon(Icons.Default.Add, "Thêm", tint = Accent)
                         }
                         HorizontalDivider()
                     }

@@ -47,6 +47,10 @@ class Store(private val context: Context) {
         get() = prefs.getString("backupUri", null)?.let(Uri::parse)
         set(value) { prefs.edit().putString("backupUri", value?.toString()).apply() }
     val lastBackupAt: Long get() = prefs.getLong("backupAt", 0)
+    /** Day (epoch) the "close this month?" question was last shown, so it is asked at most once a day. */
+    var closeAskedDay: Long
+        get() = prefs.getLong("closeAskedDay", 0)
+        set(value) { prefs.edit().putLong("closeAskedDay", value).apply() }
     var lockEnabled: Boolean
         get() = prefs.getBoolean("lock", true)
         set(value) { prefs.edit().putBoolean("lock", value).apply() }

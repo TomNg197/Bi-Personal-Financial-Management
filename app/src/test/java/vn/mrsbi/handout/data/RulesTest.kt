@@ -88,4 +88,22 @@ class RulesTest {
         assertEquals(listOf("An", "Anh", "Huy", "Linh", "My", "Ngọc", "Quân", "Vy"),
             names.sortedWith(vn.mrsbi.handout.util.Format.byGivenName).map { it.substringAfterLast(' ') })
     }
+
+    @Test fun feeMessageForParentAndCentre() {
+        var d = base()
+        val (centerSession, personalSession) = Rules.occurrencesOn(d, monday)
+        d = done(d, personalSession, setOf("b"))
+        d = done(d, centerSession, emptySet())
+        val month = YearMonth.of(2026, 11)
+        val lines = Rules.monthSummary(d, month).lines
+        assertEquals("Học phí tháng 11 của An: 1 buổi × 150.000đ = 150.000đ. Vắng 0 buổi.", Rules.feeMessage(d, lines.first { it.key == "s:a" }, month))
+        assertEquals("Học phí tháng 11 của Bình: 0 buổi = 0đ. Vắng 1 buổi.", Rules.feeMessage(d, lines.first { it.key == "s:b" }, month))
+        assertEquals("Học phí tháng 11 lớp Lớp trung tâm: 1 buổi × 300.000đ = 300.000đ.", Rules.feeMessage(d, lines.first { it.key == "c:c" }, month))
+    }
+
+    @Test fun nextClassAfterAFreeDay() {
+        val next = Rules.nextOccurrence(base(), monday + 3)   // Thursday → next is Monday 8:00 centre class
+        assertEquals(monday + 7, next!!.day)
+        assertEquals("c", next.group.id)
+    }
 }

@@ -78,13 +78,13 @@ fun SettingsScreen(store: Store, data: AppData) {
         HorizontalDivider()
         Text("Sao lưu Google Drive", fontWeight = FontWeight.SemiBold)
         if (backup == null) {
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFFFFF1E0)).border(1.dp, Color(0xFFF59E0B), RoundedCornerShape(16.dp)).padding(16.dp),
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFFF59E0B).copy(alpha = .14f)).border(1.dp, Color(0xFFF59E0B), RoundedCornerShape(16.dp)).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Warning, null, tint = Color(0xFFB45309)); Spacer(Modifier.width(8.dp))
-                    Text("Chưa có bản sao lưu", fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
+                    Text("Chưa có bản sao lưu", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 }
-                Text("Mất máy là mất dữ liệu. Chọn nơi lưu trên Google Drive.", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF92400E))
+                Text("Mất máy là mất dữ liệu. Chọn nơi lưu trên Google Drive.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 Button(onClick = { create.launch("just-bi-backup.json") }, modifier = Modifier.fillMaxWidth()) { Text("Chọn nơi sao lưu") }
             }
         } else {

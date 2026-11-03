@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -34,7 +35,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import vn.mrsbi.handout.data.Rules
 import vn.mrsbi.handout.data.Store
+import vn.mrsbi.handout.data.closeMonth
 import vn.mrsbi.handout.util.Updater
 
 private data class Tab(val title: String, val icon: ImageVector)
@@ -48,13 +51,22 @@ fun App(store: Store) {
     val data by store.data.collectAsState()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(Unit) { store.syncSheet() }   // catch up on changes made while offline
+    // On the last day of a month (or later, while the previous month is still open) ask once a day to close it.
+    val today = java.time.LocalDate.now()
+    val askMonth = listOf(java.time.YearMonth.from(today).minusMonths(1), java.time.YearMonth.from(today)).firstOrNull { m ->
+        Rules.monthKey(m) !in data.closedMonths && !today.isBefore(m.atEndOfMonth()) && data.sessions.any { it.done && Rules.inMonth(it.day, m) }
+    }
+    var askClose by remember { mutableStateOf(askMonth != null && store.closeAskedDay != today.toEpochDay()) }
+    if (askClose && askMonth != null) CloseMonthDialog(askMonth,
+        onConfirm = { store.closeMonth(askMonth); store.closeAskedDay = today.toEpochDay(); askClose = false; tab = 2 },
+        onDismiss = { store.closeAskedDay = today.toEpochDay(); askClose = false })
     Scaffold(
         bottomBar = {
-            NavigationBar(containerColor = androidx.compose.ui.graphics.Color.White, tonalElevation = 0.dp) {
+            NavigationBar(containerColor = CardBg, tonalElevation = 0.dp) {
                 tabs.forEachIndexed { i, t ->
-                    NavigationBarItem(selected = tab == i, onClick = { tab = i }, icon = { Icon(t.icon, t.title, Modifier.size(24.dp)) }, label = { Text(t.title) },
-                        colors = androidx.compose.material3.NavigationBarItemDefaults.colors(selectedIconColor = Violet, selectedTextColor = Violet,
-                            unselectedIconColor = Muted, unselectedTextColor = Muted, indicatorColor = androidx.compose.ui.graphics.Color(0xFFE9E2FF)))
+                    NavigationBarItem(selected = tab == i, onClick = { tab = i }, icon = { Icon(t.icon, t.title, Modifier.size(24.dp)) }, label = { Text(t.title, maxLines = 1, softWrap = false) },
+                        colors = androidx.compose.material3.NavigationBarItemDefaults.colors(selectedIconColor = Accent, selectedTextColor = Accent,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant, unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant, indicatorColor = MaterialTheme.colorScheme.primaryContainer))
                 }
             }
         },

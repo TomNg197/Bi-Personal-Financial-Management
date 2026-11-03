@@ -51,6 +51,8 @@ data class ClassGroup(
     val address: String = "",
     /** Weekday (ISO) → its own time, for classes whose sessions start at different hours. Missing days use [startMinute]/[durationMin]. */
     val dayTimes: Map<Int, DayTime> = emptyMap(),
+    /** Short label for the weekly timetable blocks, e.g. "Toán 5A". Empty = use [name]. */
+    val shortName: String = "",
 ) {
     fun timeOn(weekday: Int): DayTime = if (repeat) dayTimes[weekday] ?: DayTime(startMinute, durationMin) else DayTime(startMinute, durationMin)
 }
@@ -87,5 +89,7 @@ data class AppData(
     val classes: List<ClassGroup> = emptyList(),
     val sessions: List<SessionRecord> = emptyList(),
     val payments: List<Payment> = emptyList(),
+    /** Months whose fees were closed ("chốt"): yyyy-MM → time of closing. Fees are collected after closing. */
+    val closedMonths: Map<String, Long> = emptyMap(),
     val modifiedAt: Long = 0,
 )

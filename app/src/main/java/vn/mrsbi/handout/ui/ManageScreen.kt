@@ -111,7 +111,7 @@ fun ManageScreen(store: Store, data: AppData) {
             } else LazyColumn(Modifier.fillMaxSize()) {
                 items(data.students.filter { !it.archived }.sortedWith(compareBy(Format.byGivenName) { it.name }), key = { it.id }) { s ->
                     // Avatar in the colour of the student's first class.
-                    val tint = data.classes.firstOrNull { c -> !c.archived && c.members.any { it.studentId == s.id } }?.let { Color(it.color) } ?: Violet
+                    val tint = data.classes.firstOrNull { c -> !c.archived && c.members.any { it.studentId == s.id } }?.let { Color(it.color) } ?: Accent
                     Row(Modifier.fillMaxWidth().clickable { editStudent = s }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(42.dp).clip(CircleShape).background(tint.copy(alpha = .16f)), contentAlignment = Alignment.Center) {
                             Text(initials(s.name), color = tint, fontWeight = FontWeight.Bold)
@@ -202,7 +202,7 @@ private fun StudentEditor(student: Student, isNew: Boolean, onSave: (Student) ->
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun ClassEditor(
+internal fun ClassEditor(
     group: ClassGroup, data: AppData, isNew: Boolean, onSave: (ClassGroup) -> Unit, onDelete: () -> Unit, onClose: () -> Unit,
 ) {
     var c by remember { mutableStateOf(group) }
@@ -226,6 +226,8 @@ private fun ClassEditor(
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(c.name, { c = c.copy(name = it) }, label = { Text("Tên lớp") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(c.content, { c = c.copy(content = it) }, label = { Text("Nội dung dạy (VD: IELTS, lớp trung tâm)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(c.shortName, { c = c.copy(shortName = it.take(12)) }, label = { Text("Tên ngắn trên thời khoá biểu (VD: Toán 5A)") }, singleLine = true,
+                        modifier = Modifier.fillMaxWidth())
                     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                         ClassType.entries.forEachIndexed { i, t ->
                             SegmentedButton(selected = c.type == t, onClick = { c = c.copy(type = t) }, shape = SegmentedButtonDefaults.itemShape(i, 2)) {
@@ -242,11 +244,18 @@ private fun ClassEditor(
                         }
                     }
                     if (!c.online) OutlinedTextField(c.address, { c = c.copy(address = it) }, label = { Text("Địa chỉ học") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    FlowRow {
-                        ClassColors.forEachIndexed { i, col ->
-                            Box(Modifier.size(48.dp).clickable { c = c.copy(color = col) }.semantics { contentDescription = "Màu " + ClassColorNames[i] }, contentAlignment = Alignment.Center) {
-                                Box(Modifier.size(40.dp).clip(CircleShape).background(Color(col)), contentAlignment = Alignment.Center) {
-                                    if (c.color == col) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    // 8 colours as an even 4 × 2 grid.
+                    Column {
+                        ClassColors.chunked(4).forEachIndexed { r, row ->
+                            Row(Modifier.fillMaxWidth()) {
+                                row.forEachIndexed { k, col ->
+                                    val i = r * 4 + k
+                                    Box(Modifier.weight(1f).height(48.dp).clickable { c = c.copy(color = col) }.semantics { contentDescription = "Màu " + ClassColorNames[i] },
+                                        contentAlignment = Alignment.Center) {
+                                        Box(Modifier.size(40.dp).clip(CircleShape).background(Color(col)), contentAlignment = Alignment.Center) {
+                                            if (c.color == col) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -272,15 +281,15 @@ private fun ClassEditor(
                         }
                     }
                     if (c.repeat) {
-                        if (c.weekdays.isNotEmpty()) Text("Giờ học từng buổi (mỗi thứ chỉnh riêng được)", style = MaterialTheme.typography.bodySmall, color = Muted)
+                        if (c.weekdays.isNotEmpty()) Text("Giờ học từng buổi (mỗi thứ chỉnh riêng được)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         c.weekdays.sorted().forEach { d ->
                             val t = c.timeOn(d)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(Format.weekdayShort(d), Modifier.width(36.dp), fontWeight = FontWeight.Bold, color = Violet)
+                                Text(Format.weekdayShort(d), Modifier.width(36.dp), fontWeight = FontWeight.Bold, color = Accent)
                                 OutlinedButton(onClick = { timeDay = d; pickTime = true }) { Text(Format.time(t.start)) }
                                 Text("–")
                                 OutlinedButton(onClick = { timeDay = d; pickEndTime = true }) { Text(Format.time((t.start + t.duration) % (24 * 60))) }
-                                Text(Format.duration(t.duration), style = MaterialTheme.typography.bodySmall, color = Muted)
+                                Text(Format.duration(t.duration), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     } else {
@@ -288,7 +297,7 @@ private fun ClassEditor(
                             OutlinedButton(onClick = { timeDay = 0; pickTime = true }) { Text("Bắt đầu " + Format.time(c.startMinute)) }
                             OutlinedButton(onClick = { timeDay = 0; pickEndTime = true }) { Text("Kết thúc " + Format.time((c.startMinute + c.durationMin) % (24 * 60))) }
                         }
-                        Text("Thời lượng " + Format.duration(c.durationMin), style = MaterialTheme.typography.bodySmall, color = Muted)
+                        Text("Thời lượng " + Format.duration(c.durationMin), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { pickStart = true }) { Text((if (c.repeat) "Từ " else "Ngày ") + Format.shortDay(c.startDay)) }
@@ -297,7 +306,7 @@ private fun ClassEditor(
                     HorizontalDivider()
                     Text("Học sinh trong lớp (" + c.members.size + ")", fontWeight = FontWeight.SemiBold)
                     if (c.type == ClassType.PERSONAL) Text("Học phí riêng từng bạn: sửa để miễn giảm.", style = MaterialTheme.typography.bodySmall)
-                    if (c.members.isEmpty()) Text("Lớp chưa có học sinh.", style = MaterialTheme.typography.bodyMedium, color = Muted)
+                    if (c.members.isEmpty()) Text("Lớp chưa có học sinh.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     c.members.forEach { m ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(names[m.studentId]?.name ?: "(đã xoá)", Modifier.weight(1f))
