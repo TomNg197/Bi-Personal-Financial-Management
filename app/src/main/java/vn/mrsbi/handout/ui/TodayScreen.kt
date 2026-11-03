@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -178,6 +180,7 @@ fun studentsOf(o: Occurrence) = o.group.members.size + (o.record?.guests?.keys?.
 private fun untilText(minutes: Int) = if (minutes < 60) "Còn $minutes phút" else "Còn " + Format.duration(minutes)
 
 /** Each class is a colour board; a dark veil behind the text column keeps white text readable on light colours. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SessionCard(o: Occurrence, highlight: Boolean, now: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val color = Color(o.group.color)
@@ -205,20 +208,22 @@ private fun SessionCard(o: Occurrence, highlight: Boolean, now: Int, onClick: ()
                 Spacer(Modifier.height(10.dp))
                 PlaceTag(o.group, color)
                 Spacer(Modifier.height(14.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // Button left, chip right; with large text the chip wraps under the button (left-aligned, 8dp gap).
+                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box(Modifier.height(48.dp), contentAlignment = Alignment.Center) {
                         Box(Modifier.height(44.dp).shadow(2.dp, RoundedCornerShape(50)).clip(RoundedCornerShape(50)).background(Color.White).clickable(onClick = onClick)
                             .padding(horizontal = 22.dp), contentAlignment = Alignment.Center) {
                             Text("Điểm danh →", color = color, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                         }
                     }
-                    Spacer(Modifier.weight(1f).width(8.dp))
+                    Box(Modifier.height(48.dp), contentAlignment = Alignment.Center) {
                     Row(Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = .2f)).border(1.dp, Color.White.copy(alpha = .7f), RoundedCornerShape(50))
                         .padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (o.group.type == ClassType.CENTER) Text(Format.money(o.group.centerFee) + "/buổi", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold,
-                            maxLines = 1, softWrap = false)
+                            maxLines = 1)
                         else { Icon(Icons.Default.Groups, "Số học sinh", tint = Color.White, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
                             Text(studentsOf(o).toString(), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold) }
+                    }
                     }
                 }
             }

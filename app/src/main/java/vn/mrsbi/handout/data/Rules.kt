@@ -92,7 +92,10 @@ object Rules {
     }
 
     /** Text the teacher sends to a parent (or a centre) after the month is closed. */
-    fun feeMessage(data: AppData, line: FeeLine, month: YearMonth): String {
+    /** How the teacher addresses a child: the name without the family name ("Hoàng Đức Anh" → "Đức Anh"). */
+    fun callName(full: String): String { val w = full.trim().split(Regex("\\s+")); return if (w.size >= 3) w.drop(1).joinToString(" ") else w.last() }
+
+    fun feeMessage(data: AppData, line: FeeLine, month: YearMonth, signature: String = "Cô Chi"): String {
         val m = month.monthValue
         val records = data.sessions.filter { it.done && inMonth(it.day, month) }
         val prices = if (line.key.startsWith("s:")) records.mapNotNull { it.charges[line.key.removePrefix("s:")] }
@@ -100,8 +103,9 @@ object Rules {
         val money = { v: Long -> "%,d".format(v).replace(',', '.') + "đ" }
         val how = if (prices.isNotEmpty() && prices.distinct().size == 1) "${line.present} buổi × ${money(prices.first())} = ${money(line.amount)}"
             else "${line.present} buổi = ${money(line.amount)}"
-        return if (line.key.startsWith("s:")) "Học phí tháng $m của ${line.title}: $how. Vắng ${line.absent} buổi."
-            else "Học phí tháng $m lớp ${line.title}: $how."
+        val sign = signature.trim().let { if (it.isEmpty()) "" else " $it." }
+        return if (line.key.startsWith("s:")) "Chào phụ huynh bạn ${callName(line.title)}, học phí tháng $m của con là $how (vắng ${line.absent} buổi). Cảm ơn phụ huynh ạ.$sign"
+            else "Chào trung tâm, học phí tháng $m lớp ${line.title} là $how. Cảm ơn ạ.$sign"
     }
 
     /** Every taught session of one student in a month: day, class, present?, amount. */

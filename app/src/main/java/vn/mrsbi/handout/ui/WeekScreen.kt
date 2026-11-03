@@ -61,16 +61,18 @@ private data class Band(val fromHour: Int, val toHour: Int, val folded: Boolean)
 
 /** Weekly timetable (Mon–Sun): blocks placed by start time and length; empty stretches of 3 h or more are folded. */
 @Composable
-fun WeekScreen(store: Store, data: AppData) {
+fun WeekScreen(store: Store, data: AppData, nowOverride: Int? = null) {
     var monday by rememberSaveable { mutableLongStateOf(LocalDate.now().let { it.minusDays(it.dayOfWeek.value - 1L) }.toEpochDay()) }
     var unfolded by remember(monday) { mutableStateOf(emptySet<Int>()) }
-    val now by produceState(LocalTime.now().toSecondOfDay() / 60) { while (true) { delay(60_000); value = LocalTime.now().toSecondOfDay() / 60 } }
+    val clock by produceState(LocalTime.now().toSecondOfDay() / 60) { while (true) { delay(60_000); value = LocalTime.now().toSecondOfDay() / 60 } }
+    val now = nowOverride ?: clock
     val days = (0..6).map { monday + it }
     val week = days.associateWith { Rules.occurrencesOn(data, it) }
     val all = week.values.flatten()
     val firstHour = ((all.minOfOrNull { it.startMinute } ?: (8 * 60)) / 60).coerceAtMost(8)
     val lastHour = ((all.maxOfOrNull { it.startMinute + it.durationMin } ?: (20 * 60)) + 59).div(60).coerceAtLeast(20).coerceAtMost(24)
-    val busy = (firstHour until lastHour).filter { h -> all.any { it.startMinute < (h + 1) * 60 && it.startMinute + it.durationMin > h * 60 } }.toSet()
+    val nowHour = if (Format.today() in days.first()..days.last()) now / 60 else -1   // keep the "now" line visible
+    val busy = (firstHour until lastHour).filter { h -> h == nowHour || all.any { it.startMinute < (h + 1) * 60 && it.startMinute + it.durationMin > h * 60 } }.toSet()
     val bands = buildList {
         var h = firstHour
         while (h < lastHour) {

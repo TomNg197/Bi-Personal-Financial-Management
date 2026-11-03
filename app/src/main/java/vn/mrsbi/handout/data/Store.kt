@@ -48,6 +48,10 @@ class Store(private val context: Context) {
         set(value) { prefs.edit().putString("backupUri", value?.toString()).apply() }
     val lastBackupAt: Long get() = prefs.getLong("backupAt", 0)
     /** Day (epoch) the "close this month?" question was last shown, so it is asked at most once a day. */
+    /** Signature at the end of fee messages to parents. */
+    var signature: String
+        get() = prefs.getString("signature", "Cô Chi") ?: "Cô Chi"
+        set(value) { prefs.edit().putString("signature", value).apply() }
     var closeAskedDay: Long
         get() = prefs.getLong("closeAskedDay", 0)
         set(value) { prefs.edit().putLong("closeAskedDay", value).apply() }

@@ -91,5 +91,7 @@ data class AppData(
     val payments: List<Payment> = emptyList(),
     /** Months whose fees were closed ("chốt"): yyyy-MM → time of closing. Fees are collected after closing. */
     val closedMonths: Map<String, Long> = emptyMap(),
+    /** Fee messages the teacher opened to send: "yyyy-MM|<fee line key>" → time. */
+    val sentNotices: Map<String, Long> = emptyMap(),
     val modifiedAt: Long = 0,
 )

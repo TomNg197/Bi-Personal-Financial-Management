@@ -1,5 +1,6 @@
 package vn.mrsbi.handout.ui
 
+import androidx.compose.material3.OutlinedTextField
 import vn.mrsbi.handout.util.Format
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
@@ -108,6 +109,9 @@ fun SettingsScreen(store: Store, data: AppData) {
             if (ok) store.syncSheet(force = true)
         }, modifier = Modifier.fillMaxWidth()) { Text(if (sheetReady) "Dán lại cấu hình Google Sheet" else "Dán cấu hình Google Sheet") }
         if (sheetReady) OutlinedButton(onClick = { store.syncSheet(force = true) }, modifier = Modifier.fillMaxWidth()) { Text("Cập nhật Google Sheet ngay") }
+        HorizontalDivider()
+        var sign by remember { mutableStateOf(store.signature) }
+        OutlinedTextField(sign, { sign = it; store.signature = it }, label = { Text("Ký tên cuối tin nhắn học phí") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         HorizontalDivider()
         Text("Dữ liệu: ${data.students.count { !it.archived }} học sinh · ${data.classes.count { !it.archived }} lớp · ${data.sessions.count { it.done }} buổi đã dạy",
             style = MaterialTheme.typography.bodyMedium)

@@ -96,9 +96,10 @@ class RulesTest {
         d = done(d, centerSession, emptySet())
         val month = YearMonth.of(2026, 11)
         val lines = Rules.monthSummary(d, month).lines
-        assertEquals("Học phí tháng 11 của An: 1 buổi × 150.000đ = 150.000đ. Vắng 0 buổi.", Rules.feeMessage(d, lines.first { it.key == "s:a" }, month))
-        assertEquals("Học phí tháng 11 của Bình: 0 buổi = 0đ. Vắng 1 buổi.", Rules.feeMessage(d, lines.first { it.key == "s:b" }, month))
-        assertEquals("Học phí tháng 11 lớp Lớp trung tâm: 1 buổi × 300.000đ = 300.000đ.", Rules.feeMessage(d, lines.first { it.key == "c:c" }, month))
+        assertEquals("Chào phụ huynh bạn An, học phí tháng 11 của con là 1 buổi × 150.000đ = 150.000đ (vắng 0 buổi). Cảm ơn phụ huynh ạ. Cô Chi.", Rules.feeMessage(d, lines.first { it.key == "s:a" }, month))
+        assertEquals("Chào phụ huynh bạn Bình, học phí tháng 11 của con là 0 buổi = 0đ (vắng 1 buổi). Cảm ơn phụ huynh ạ. Cô Chi.", Rules.feeMessage(d, lines.first { it.key == "s:b" }, month))
+        assertEquals("Chào trung tâm, học phí tháng 11 lớp Lớp trung tâm là 1 buổi × 300.000đ = 300.000đ. Cảm ơn ạ. Cô Chi.", Rules.feeMessage(d, lines.first { it.key == "c:c" }, month))
+        assertEquals("Đức Anh", Rules.callName("Hoàng Đức Anh")); assertEquals("My", Rules.callName("Hà My"))
     }
 
     @Test fun nextClassAfterAFreeDay() {

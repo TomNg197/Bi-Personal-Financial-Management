@@ -77,6 +77,7 @@ import vn.mrsbi.handout.data.FeeLine
 import vn.mrsbi.handout.data.Rules
 import vn.mrsbi.handout.data.Store
 import vn.mrsbi.handout.data.closeMonth
+import vn.mrsbi.handout.data.markNoticeSent
 import vn.mrsbi.handout.data.reopenMonth
 import vn.mrsbi.handout.data.setPaid
 import vn.mrsbi.handout.util.Csv
@@ -166,7 +167,7 @@ fun FeesScreen(store: Store, data: AppData) {
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
     if (confirmClose) CloseMonthDialog(month, onConfirm = { store.closeMonth(month); confirmClose = false }, onDismiss = { confirmClose = false })
-    if (share) ShareSheet(data, summary.lines.filter { it.paidAt == null }, month, onClose = { share = false })
+    if (share) ShareSheet(data, summary.lines.filter { it.paidAt == null }, month, store.signature, onSent = { store.markNoticeSent(month, it) }, onClose = { share = false })
     detail?.let { line ->
         val sessions = Rules.studentSessions(data, line.key.removePrefix("s:"), month)
         AlertDialog(
@@ -339,7 +340,7 @@ private fun PaidRow(line: FeeLine, onOpen: () -> Unit, onUnpay: () -> Unit) {
 /** One prepared message per unpaid line; the teacher picks Zalo, SMS or copy. The app never sends anything itself. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ShareSheet(data: AppData, lines: List<FeeLine>, month: YearMonth, onClose: () -> Unit) {
+private fun ShareSheet(data: AppData, lines: List<FeeLine>, month: YearMonth, signature: String, onSent: (String) -> Unit, onClose: () -> Unit) {
     val context = LocalContext.current
     ModalBottomSheet(onDismissRequest = onClose, containerColor = CardBg) {
         Column(Modifier.padding(horizontal = 20.dp).navigationBarsPadding()) {
@@ -348,17 +349,22 @@ private fun ShareSheet(data: AppData, lines: List<FeeLine>, month: YearMonth, on
             Spacer(Modifier.height(8.dp))
             LazyColumn(Modifier.heightIn(max = 480.dp)) {
                 items(lines.sortedWith(compareBy(Format.byGivenName) { it.title }), key = { it.key }) { line ->
-                    val text = Rules.feeMessage(data, line, month)
+                    val text = Rules.feeMessage(data, line, month, signature)
+                    val sentAt = data.sentNotices[Rules.monthKey(month) + "|" + line.key]
                     Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(line.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(line.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                if (sentAt != null) Text("  ✓ Đã gửi " + shortDate(sentAt), fontSize = 14.sp, color = Earned, fontWeight = FontWeight.SemiBold)
+                            }
                             Text(text, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Spacer(Modifier.width(8.dp))
                         FilledTonalButton(onClick = {
                             context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), "Gửi học phí " + line.title))
+                            onSent(line.key)
                         }, modifier = Modifier.heightIn(min = 48.dp), colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Accent)) { Text("Gửi", fontWeight = FontWeight.Bold) }
+                            containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Accent)) { Text(if (sentAt == null) "Gửi" else "Gửi lại", fontWeight = FontWeight.Bold) }
                     }
                     HorizontalDivider()
                 }

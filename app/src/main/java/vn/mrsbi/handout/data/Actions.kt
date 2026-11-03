@@ -65,6 +65,8 @@ fun Store.closeMonth(month: YearMonth) = update { d -> d.copy(closedMonths = d.c
 
 fun Store.reopenMonth(month: YearMonth) = update { d -> d.copy(closedMonths = d.closedMonths - Rules.monthKey(month)) }
 
+fun Store.markNoticeSent(month: YearMonth, key: String) = update { d -> d.copy(sentNotices = d.sentNotices + (Rules.monthKey(month) + "|" + key to System.currentTimeMillis())) }
+
 fun Store.setPaid(month: YearMonth, key: String, paid: Boolean) = update { d ->
     val m = Rules.monthKey(month)
     val others = d.payments.filterNot { it.month == m && it.key == key }
