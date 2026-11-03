@@ -122,7 +122,7 @@ private fun SessionCard(o: Occurrence, onClick: () -> Unit) {
     ) {
         Box(Modifier.fillMaxWidth().background(brush).padding(16.dp)) {
             Column(Modifier.fillMaxWidth().padding(end = 64.dp)) {
-                Text(Format.range(o.startMinute, o.group.durationMin), color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text(Format.range(o.startMinute, o.durationMin), color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 Text(o.group.name, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val type = if (o.group.type == ClassType.CENTER) "Trung tâm" else "Cá nhân"
                 Text(listOf(o.group.content, type).filter { it.isNotBlank() }.joinToString(" · ") + if (o.moved) " · dời từ " + Format.shortDay(o.originalDay) else "",
@@ -171,7 +171,7 @@ private fun AttendanceSheet(store: Store, data: AppData, o: Occurrence, onClose:
     ModalBottomSheet(onDismissRequest = onClose) {
         Column(Modifier.padding(horizontal = 20.dp).navigationBarsPadding()) {
             Text(o.group.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(Format.fullDay(o.day) + " · " + Format.range(o.startMinute, o.group.durationMin), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(Format.fullDay(o.day) + " · " + Format.range(o.startMinute, o.durationMin), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(6.dp))
             PlaceTag(o.group, Color(o.group.color), onBoard = false)
             Spacer(Modifier.height(4.dp))

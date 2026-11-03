@@ -67,6 +67,7 @@ import vn.mrsbi.handout.data.AppData
 import vn.mrsbi.handout.data.ClassGroup
 import vn.mrsbi.handout.data.ClassType
 import vn.mrsbi.handout.data.Member
+import vn.mrsbi.handout.data.DayTime
 import vn.mrsbi.handout.data.Store
 import vn.mrsbi.handout.data.Student
 import vn.mrsbi.handout.data.deleteClass
@@ -136,8 +137,21 @@ fun ManageScreen(store: Store, data: AppData) {
         onDelete = { store.deleteClass(c.id); editClass = null }, onClose = { editClass = null }) }
 }
 
+/** Turning a weekday on copies the time of the last chosen day; turning it off drops its own time. */
+private fun ClassGroup.toggleDay(d: Int): ClassGroup =
+    if (d in weekdays) copy(weekdays = weekdays - d, dayTimes = dayTimes - d)
+    else copy(weekdays = (weekdays + d).sorted(), dayTimes = dayTimes + (d to (weekdays.lastOrNull()?.let { timeOn(it) } ?: DayTime(startMinute, durationMin))))
+
+/** [day] 0 edits the single time of a one-off class; otherwise that weekday's own time. The first weekday also sets the class default. */
+private fun ClassGroup.withTime(day: Int, t: DayTime): ClassGroup {
+    if (day == 0) return copy(startMinute = t.start, durationMin = t.duration)
+    val times = weekdays.associateWith { timeOn(it) } + (day to t)
+    val first = times.getValue(weekdays.sorted().first())
+    return copy(dayTimes = times, startMinute = first.start, durationMin = first.duration)
+}
+
 fun scheduleText(c: ClassGroup) =
-    if (c.repeat) c.weekdays.sorted().joinToString(", ") { Format.weekdayShort(it) } + " " + Format.time(c.startMinute)
+    if (c.repeat) c.weekdays.sorted().groupBy { c.timeOn(it).start }.entries.joinToString(" · ") { (start, days) -> days.joinToString(", ") { Format.weekdayShort(it) } + " " + Format.time(start) }
     else "Buổi lẻ " + Format.shortDay(c.startDay) + " " + Format.time(c.startMinute)
 
 @Composable
@@ -189,6 +203,8 @@ private fun ClassEditor(
     var pickEnd by remember { mutableStateOf(false) }
     var pickTime by remember { mutableStateOf(false) }
     var pickEndTime by remember { mutableStateOf(false) }
+    // Weekday whose own time is being edited (0 = the single time of a one-off class).
+    var timeDay by remember { mutableIntStateOf(0) }
     var pickStudent by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val names = data.students.associateBy { it.id }
@@ -235,15 +251,28 @@ private fun ClassEditor(
                     }
                     if (c.repeat) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         (1..7).forEach { d ->
-                            FilterChip(selected = d in c.weekdays, onClick = { c = c.copy(weekdays = if (d in c.weekdays) c.weekdays - d else (c.weekdays + d).sorted()) },
-                                label = { Text(Format.weekdayShort(d)) })
+                            FilterChip(selected = d in c.weekdays, onClick = { c = c.toggleDay(d) }, label = { Text(Format.weekdayShort(d)) })
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedButton(onClick = { pickTime = true }) { Text("Bắt đầu " + Format.time(c.startMinute)) }
-                        OutlinedButton(onClick = { pickEndTime = true }) { Text("Kết thúc " + Format.time((c.startMinute + c.durationMin) % (24 * 60))) }
+                    if (c.repeat) {
+                        if (c.weekdays.isNotEmpty()) Text("Giờ học từng buổi (mỗi thứ chỉnh riêng được)", style = MaterialTheme.typography.bodySmall, color = Muted)
+                        c.weekdays.sorted().forEach { d ->
+                            val t = c.timeOn(d)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(Format.weekdayShort(d), Modifier.width(36.dp), fontWeight = FontWeight.Bold, color = Violet)
+                                OutlinedButton(onClick = { timeDay = d; pickTime = true }) { Text(Format.time(t.start)) }
+                                Text("–")
+                                OutlinedButton(onClick = { timeDay = d; pickEndTime = true }) { Text(Format.time((t.start + t.duration) % (24 * 60))) }
+                                Text(Format.duration(t.duration), style = MaterialTheme.typography.bodySmall, color = Muted)
+                            }
+                        }
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedButton(onClick = { timeDay = 0; pickTime = true }) { Text("Bắt đầu " + Format.time(c.startMinute)) }
+                            OutlinedButton(onClick = { timeDay = 0; pickEndTime = true }) { Text("Kết thúc " + Format.time((c.startMinute + c.durationMin) % (24 * 60))) }
+                        }
+                        Text("Thời lượng " + Format.duration(c.durationMin), style = MaterialTheme.typography.bodySmall, color = Muted)
                     }
-                    Text("Thời lượng " + Format.duration(c.durationMin), style = MaterialTheme.typography.bodySmall, color = Muted)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { pickStart = true }) { Text((if (c.repeat) "Từ " else "Ngày ") + Format.shortDay(c.startDay)) }
                         if (c.repeat) OutlinedButton(onClick = { pickEnd = true }) { Text(c.endDay?.let { "Đến " + Format.shortDay(it) } ?: "Không hạn") }
@@ -272,11 +301,12 @@ private fun ClassEditor(
             }
         }
     }
-    if (pickTime) TimePickerDialog(c.startMinute, { pickTime = false }) { c = c.copy(startMinute = it); pickTime = false }
+    val editing = if (timeDay == 0) DayTime(c.startMinute, c.durationMin) else c.timeOn(timeDay)
+    if (pickTime) TimePickerDialog(editing.start, { pickTime = false }) { c = c.withTime(timeDay, editing.copy(start = it)); pickTime = false }
     // The end time sets the length; an end at or before the start is read as running past midnight.
-    if (pickEndTime) TimePickerDialog((c.startMinute + c.durationMin) % (24 * 60), { pickEndTime = false }) { end ->
-        val length = Math.floorMod(end - c.startMinute, 24 * 60)
-        if (length > 0) c = c.copy(durationMin = length); pickEndTime = false
+    if (pickEndTime) TimePickerDialog((editing.start + editing.duration) % (24 * 60), { pickEndTime = false }) { end ->
+        val length = Math.floorMod(end - editing.start, 24 * 60)
+        if (length > 0) c = c.withTime(timeDay, editing.copy(duration = length)); pickEndTime = false
     }
     if (pickStudent) StudentPickerDialog(data, c.members.map { it.studentId }.toSet(), "Thêm học sinh vào lớp", { pickStudent = false }) { s ->
         c = c.copy(members = c.members + Member(s.id, s.fee))

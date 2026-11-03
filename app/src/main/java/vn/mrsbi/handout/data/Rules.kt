@@ -5,6 +5,8 @@ import java.time.YearMonth
 
 /** One session as shown on a given day: generated from a class schedule, possibly moved or already taught. */
 data class Occurrence(val group: ClassGroup, val originalDay: Long, val day: Long, val startMinute: Int, val record: SessionRecord?) {
+    /** Length of the session as scheduled on its original weekday. */
+    val durationMin get() = group.timeOn(LocalDate.ofEpochDay(originalDay).dayOfWeek.value).duration
     val done get() = record?.done == true
     val moved get() = record != null && record.day != originalDay
     val key get() = group.id + "@" + originalDay
@@ -36,7 +38,7 @@ object Rules {
             if (!scheduledOn(group, day)) continue
             val record = byKey[group.id + "@" + day]
             if (record != null && record.day != day) continue   // postponed to another day
-            result += Occurrence(group, day, day, record?.startMinute ?: group.startMinute, record)
+            result += Occurrence(group, day, day, record?.startMinute ?: group.timeOn(LocalDate.ofEpochDay(day).dayOfWeek.value).start, record)
         }
         for (record in data.sessions) {   // sessions moved onto this day
             if (record.day != day || record.originalDay == day) continue

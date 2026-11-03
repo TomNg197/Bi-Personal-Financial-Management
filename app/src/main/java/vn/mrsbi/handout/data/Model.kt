@@ -17,6 +17,10 @@ data class Student(
     val archived: Boolean = false,
 )
 
+/** Start and length of a weekly session on one weekday (minutes). */
+@Serializable
+data class DayTime(val start: Int, val duration: Int)
+
 /** A student inside a personal class, with the fee agreed for that class (discounts / exemptions). */
 @Serializable
 data class Member(val studentId: String, val fee: Long)
@@ -45,7 +49,11 @@ data class ClassGroup(
     /** Taught online, or offline at [address]. */
     val online: Boolean = false,
     val address: String = "",
-)
+    /** Weekday (ISO) → its own time, for classes whose sessions start at different hours. Missing days use [startMinute]/[durationMin]. */
+    val dayTimes: Map<Int, DayTime> = emptyMap(),
+) {
+    fun timeOn(weekday: Int): DayTime = if (repeat) dayTimes[weekday] ?: DayTime(startMinute, durationMin) else DayTime(startMinute, durationMin)
+}
 
 /**
  * Stored only once a scheduled session is touched: taught (done), postponed (day/startMinute changed) or reopened.

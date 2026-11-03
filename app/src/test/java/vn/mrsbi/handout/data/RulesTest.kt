@@ -73,4 +73,13 @@ class RulesTest {
         assertEquals(0L, s.lines.first { it.key == "s:a" }.amount)
         assertEquals(150_000L * 2 + 50_000 + 120_000, s.total)
     }
+
+    @Test fun eachWeekdayCanHaveItsOwnTime() {
+        val g = personal.copy(weekdays = listOf(2, 5), startMinute = 18 * 60, durationMin = 90, dayTimes = mapOf(5 to DayTime(9 * 60, 120)))
+        val d = base().copy(classes = listOf(g))
+        val tue = Rules.occurrencesOn(d, monday + 1).single()
+        val fri = Rules.occurrencesOn(d, monday + 4).single()
+        assertEquals(18 * 60, tue.startMinute); assertEquals(90, tue.durationMin)
+        assertEquals(9 * 60, fri.startMinute); assertEquals(120, fri.durationMin)
+    }
 }
