@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -130,10 +131,16 @@ fun WeekScreen(store: Store, data: AppData, nowOverride: Int? = null) {
                 days.forEach { d ->
                     Box(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 2.dp)
                         .background(if (d == today) MaterialTheme.colorScheme.primary.copy(alpha = .08f) else Color.Transparent, RoundedCornerShape(10.dp))) {
-                        week.getValue(d).forEach { o ->
+                        val list = week.getValue(d)
+                        val lanes = lanes(list)
+                        val clashes = Rules.clashing(list)
+                        BoxWithConstraints(Modifier.fillMaxSize()) {
+                        list.forEach { o ->
                             val color = Color(o.group.color)
                             val top = y(o.startMinute); val height = y(o.startMinute + o.durationMin) - top
-                            Box(Modifier.offset(y = top).padding(vertical = 1.dp).fillMaxWidth().height(height).clip(RoundedCornerShape(10.dp))
+                            val (lane, of) = lanes.getValue(o.key)
+                            val w = maxWidth / of
+                            Box(Modifier.offset(x = w * lane, y = top).padding(vertical = 1.dp, horizontal = if (of > 1) 1.dp else 0.dp).width(w).height(height).clip(RoundedCornerShape(10.dp))
                                 .background(Brush.verticalGradient(listOf(color, lerpColor(color, Color.White, .25f)))).padding(5.dp)) {
                                 Column {
                                     Text(Format.time(o.startMinute), fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
@@ -143,7 +150,11 @@ fun WeekScreen(store: Store, data: AppData, nowOverride: Int? = null) {
                                 if (o.done) Box(Modifier.align(Alignment.BottomEnd).size(18.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
                                     Icon(Icons.Default.Check, "Đã dạy", tint = Earned, modifier = Modifier.size(13.dp))
                                 }
+                                if (o.key in clashes) Box(Modifier.align(Alignment.TopEnd).size(18.dp).clip(CircleShape).background(Clash), contentAlignment = Alignment.Center) {
+                                    Text("!", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black)
+                                }
                             }
+                        }
                         }
                         if (d == today && now in firstHour * 60 until lastHour * 60) {
                             val red = Color(0xFFE5484D)
@@ -172,4 +183,20 @@ fun WeekScreen(store: Store, data: AppData, nowOverride: Int? = null) {
             }
         }
     }
+}
+
+/** Side-by-side lanes for overlapping sessions: key → (lane, number of lanes in its overlapping group). */
+private fun lanes(list: List<vn.mrsbi.handout.data.Occurrence>): Map<String, Pair<Int, Int>> {
+    val sorted = list.sortedBy { it.startMinute }
+    val result = mutableMapOf<String, Pair<Int, Int>>()
+    var group = mutableListOf<Pair<vn.mrsbi.handout.data.Occurrence, Int>>(); var groupEnd = -1
+    fun flush() { val n = (group.maxOfOrNull { it.second } ?: 0) + 1; group.forEach { (o, lane) -> result[o.key] = lane to n }; group = mutableListOf() }
+    for (o in sorted) {
+        if (o.startMinute >= groupEnd) { flush(); groupEnd = -1 }
+        val busy = group.filter { (g, _) -> g.startMinute + g.durationMin > o.startMinute }.map { it.second }.toSet()
+        val lane = generateSequence(0) { it + 1 }.first { it !in busy }
+        group += o to lane; groupEnd = maxOf(groupEnd, o.startMinute + o.durationMin)
+    }
+    flush()
+    return result
 }

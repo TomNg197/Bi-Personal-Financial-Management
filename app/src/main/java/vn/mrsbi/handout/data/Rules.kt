@@ -52,6 +52,29 @@ object Rules {
     fun nextOccurrence(data: AppData, day: Long, days: Int = 60): Occurrence? =
         (1..days).asSequence().map { day + it }.firstNotNullOfOrNull { d -> occurrencesOn(data, d).firstOrNull() }
 
+    private fun overlaps(aStart: Int, aLen: Int, bStart: Int, bLen: Int) = aStart < bStart + bLen && bStart < aStart + aLen
+
+    /** Keys of the sessions on one day that overlap another session that day. */
+    fun clashing(list: List<Occurrence>): Set<String> = list.filter { a ->
+        list.any { b -> b.key != a.key && overlaps(a.startMinute, a.durationMin, b.startMinute, b.durationMin) }
+    }.map { it.key }.toSet()
+
+    /**
+     * First session of another class that [group] would overlap, looking [days] days ahead from [from]
+     * (used before saving a class so double bookings are caught up front).
+     */
+    fun findClash(data: AppData, group: ClassGroup, from: Long, days: Int = 56): Occurrence? {
+        val others = data.copy(classes = data.classes.filter { it.id != group.id })
+        val start = maxOf(from, group.startDay)
+        for (day in start until start + days) {
+            if (!scheduledOn(group, day)) continue
+            val t = group.timeOn(LocalDate.ofEpochDay(day).dayOfWeek.value)
+            occurrencesOn(others, day).firstOrNull { overlaps(t.start, t.duration, it.startMinute, it.durationMin) }?.let { return it }
+            if (!group.repeat) break
+        }
+        return null
+    }
+
     /** What a session earns when marked done with these absent students. */
     fun charges(group: ClassGroup, absent: Set<String>, guests: Map<String, Long> = emptyMap()): Map<String, Long> =
         if (group.type == ClassType.CENTER) mapOf(SessionRecord.CENTER_KEY to group.centerFee)

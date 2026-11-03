@@ -107,4 +107,13 @@ class RulesTest {
         assertEquals(monday + 7, next!!.day)
         assertEquals("c", next.group.id)
     }
+
+    @Test fun clashesAreFoundBeforeSaving() {
+        val clashing = ClassGroup("x", "Bù", weekdays = listOf(1), startMinute = 8 * 60 + 30, durationMin = 60, startDay = monday)
+        assertEquals("c", Rules.findClash(base(), clashing, monday)!!.group.id)
+        val free = clashing.copy(startMinute = 12 * 60)
+        assertEquals(null, Rules.findClash(base(), free, monday))
+        val d = base().copy(classes = base().classes + clashing)
+        assertEquals(setOf("c@$monday", "x@$monday"), Rules.clashing(Rules.occurrencesOn(d, monday)))
+    }
 }

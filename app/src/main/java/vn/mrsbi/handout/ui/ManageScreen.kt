@@ -72,6 +72,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.sp
 import vn.mrsbi.handout.data.Member
+import vn.mrsbi.handout.data.Rules
+import vn.mrsbi.handout.data.Occurrence
 import vn.mrsbi.handout.data.DayTime
 import vn.mrsbi.handout.data.Store
 import vn.mrsbi.handout.data.Student
@@ -214,6 +216,7 @@ internal fun ClassEditor(
     var timeDay by remember { mutableIntStateOf(0) }
     var pickStudent by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var clash by remember { mutableStateOf<Occurrence?>(null) }
     val names = data.students.associateBy { it.id }
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -221,7 +224,10 @@ internal fun ClassEditor(
                 Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onClose) { Icon(Icons.Default.Close, "Đóng") }
                     Text(if (isNew) "Thêm lớp" else "Sửa lớp", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                    Button(enabled = c.name.isNotBlank() && (!c.repeat || c.weekdays.isNotEmpty()), onClick = { onSave(c.copy(name = c.name.trim())) }) { Text("Lưu") }
+                    Button(enabled = c.name.isNotBlank() && (!c.repeat || c.weekdays.isNotEmpty()), onClick = {
+                        val ready = c.copy(name = c.name.trim())
+                        clash = Rules.findClash(data, ready, Format.today()); if (clash == null) onSave(ready)
+                    }) { Text("Lưu") }
                 }
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(c.name, { c = c.copy(name = it) }, label = { Text("Tên lớp") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -336,6 +342,13 @@ internal fun ClassEditor(
     }
     if (pickStudent) StudentPickerDialog(data, c.members.map { it.studentId }.toSet(), "Thêm học sinh vào lớp", { pickStudent = false }) { s ->
         c = c.copy(members = c.members + Member(s.id, s.fee))
+    }
+    clash?.let { o ->
+        AlertDialog(onDismissRequest = { clash = null }, title = { Text("Trùng giờ") },
+            text = { Text("Trùng giờ với " + o.group.name + " (" + Format.weekdayShort(java.time.LocalDate.ofEpochDay(o.day).dayOfWeek.value) + " " +
+                Format.range(o.startMinute, o.durationMin) + ", " + Format.shortDay(o.day) + ").") },
+            confirmButton = { TextButton(onClick = { clash = null }) { Text("Sửa giờ", fontWeight = FontWeight.Bold) } },
+            dismissButton = { TextButton(onClick = { clash = null; onSave(c.copy(name = c.name.trim())) }) { Text("Vẫn lưu") } })
     }
     if (pickStart) DayPickerDialog(c.startDay, { pickStart = false }) { c = c.copy(startDay = it); pickStart = false }
     if (pickEnd) DayPickerDialog(c.endDay ?: c.startDay, { pickEnd = false }) { c = c.copy(endDay = it); pickEnd = false }

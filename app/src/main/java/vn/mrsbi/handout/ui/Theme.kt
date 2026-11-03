@@ -30,6 +30,8 @@ val Violet = Color(0xFF7C5CFC)
 val Rose = Color(0xFFE85D8E)
 val Muted = Color(0xFF6B6782)
 val Absent = Color(0xFFD92D20)
+/** Two sessions at the same time. */
+val Clash = Color(0xFFF97316)
 val ClassColorNames = listOf("Hồng", "Tím", "Xanh ngọc", "Cam", "Xanh dương", "Xanh lá", "Đỏ", "Nâu")
 val Hairline = Color(0xFFECE8F7)
 val Lilac = Color(0xFFF6F3FF)

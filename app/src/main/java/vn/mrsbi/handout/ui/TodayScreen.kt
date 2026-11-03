@@ -140,10 +140,11 @@ fun TodayScreen(store: Store, data: AppData, openManage: () -> Unit, initialDay:
                     val taught = all.filter { it.done }.sortedBy { it.startMinute }
                     // The next class: in progress, or starting within 3 hours (today only).
                     val next = if (pageDay == Format.today()) upcoming.firstOrNull { now < it.startMinute + it.durationMin && it.startMinute - now <= 180 } else null
+                    val clashes = Rules.clashing(all)
                     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (upcoming.isNotEmpty()) item("h1") { SectionTitle("SẮP TỚI") }
                         items(upcoming, key = { it.key }) { o ->
-                            SessionCard(o, highlight = o == next, now = now, onClick = { opened = o.key }, modifier = Modifier.animateItem())
+                            SessionCard(o, highlight = o == next, clash = o.key in clashes, now = now, onClick = { opened = o.key }, modifier = Modifier.animateItem())
                         }
                         if (taught.isNotEmpty()) item("h2") { SectionTitle("ĐÃ DẠY") }
                         items(taught, key = { it.key }) { o -> TaughtRow(o, onClick = { opened = o.key }, modifier = Modifier.animateItem()) }
@@ -182,7 +183,7 @@ private fun untilText(minutes: Int) = if (minutes < 60) "Còn $minutes phút" el
 /** Each class is a colour board; a dark veil behind the text column keeps white text readable on light colours. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SessionCard(o: Occurrence, highlight: Boolean, now: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun SessionCard(o: Occurrence, highlight: Boolean, clash: Boolean, now: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val color = Color(o.group.color)
     val shape = RoundedCornerShape(22.dp)
     val ring = if (highlight) Modifier.shadow(14.dp, RoundedCornerShape(26.dp), ambientColor = color, spotColor = color)
@@ -196,6 +197,9 @@ private fun SessionCard(o: Occurrence, highlight: Boolean, now: Int, onClick: ()
             Column(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(Format.range(o.startMinute, o.durationMin), Modifier.weight(1f), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    if (clash) Row(Modifier.padding(end = 6.dp).clip(RoundedCornerShape(50)).background(Clash).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("! Trùng giờ", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
                     if (highlight) Row(Modifier.clip(RoundedCornerShape(50)).background(Color.White).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Schedule, null, tint = color, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(4.dp))
                         Text(if (now >= o.startMinute) "Đang dạy" else untilText(o.startMinute - now), color = color, fontSize = 14.sp, fontWeight = FontWeight.Bold)
