@@ -14,6 +14,19 @@ object Format {
 
     fun money(v: Long): String = "%,d".format(v).replace(',', '.') + "đ"
     fun time(minute: Int) = "%02d:%02d".format(minute / 60, minute % 60)
+    /** "08:12 hôm nay" or "08:12 03/11". */
+    fun lastBackup(millis: Long): String {
+        val t = java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneId.systemDefault())
+        return "%02d:%02d".format(t.hour, t.minute) + if (t.toLocalDate().toEpochDay() == today()) " hôm nay" else " " + shortDay(t.toLocalDate().toEpochDay())
+    }
+
+    /** Vietnamese names sort by given name (last word), then by the full name. */
+    private val collator = java.text.Collator.getInstance(java.util.Locale("vi", "VN"))
+    val byGivenName: Comparator<String> = Comparator { a, b ->
+        val r = collator.compare(a.trim().substringAfterLast(' '), b.trim().substringAfterLast(' '))
+        if (r != 0) r else collator.compare(a, b)
+    }
+
     fun duration(minutes: Int) = when {
         minutes < 60 -> "$minutes phút"
         minutes % 60 == 0 -> "${minutes / 60} giờ"

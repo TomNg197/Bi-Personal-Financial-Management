@@ -69,29 +69,52 @@ import vn.mrsbi.handout.data.setGuests
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Wifi
 import vn.mrsbi.handout.data.ClassGroup
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import vn.mrsbi.handout.data.SessionRecord
+import vn.mrsbi.handout.data.restoreRecord
 import vn.mrsbi.handout.util.Format
 
 /** Main screen: the classes of the chosen day (default today) with their student counts. */
 @Composable
 fun TodayScreen(store: Store, data: AppData, openManage: () -> Unit) {
-    var day by rememberSaveable { mutableLongStateOf(Format.today()) }
+    // Swipe left/right to change day; page Origin is today.
+    val pager = rememberPagerState(initialPage = Origin) { Origin * 2 }
+    val scope = rememberCoroutineScope()
+    val day = Format.today() + (pager.currentPage - Origin)
+    fun goTo(d: Long) { scope.launch { pager.animateScrollToPage((Origin + d - Format.today()).toInt()) } }
     var opened by remember { mutableStateOf<String?>(null) }
+    val snackbar = remember { SnackbarHostState() }
     val list = Rules.occurrencesOn(data, day)
     val earned = list.mapNotNull { it.record }.sumOf { Rules.earned(it) }
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(if (day == Format.today()) "Hôm nay" else Format.weekday(day), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = Violet)
                 Text(Format.day(day), style = MaterialTheme.typography.bodyMedium, color = Muted)
             }
-            IconButton(onClick = { day-- }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Hôm trước") }
-            IconButton(onClick = { day++ }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Hôm sau") }
+            IconButton(onClick = { goTo(day - 1) }, Modifier.size(48.dp)) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Hôm trước") }
+            IconButton(onClick = { goTo(day + 1) }, Modifier.size(48.dp)) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Hôm sau") }
         }
-        if (day != Format.today()) TextButton(onClick = { day = Format.today() }, modifier = Modifier.padding(start = 4.dp)) { Text("← Về hôm nay") }
+        if (day != Format.today()) TextButton(onClick = { goTo(Format.today()) }, modifier = Modifier.padding(start = 4.dp)) { Text("← Về hôm nay") }
         Text(
             "${list.size} lớp · ${list.sumOf { studentsOf(it) }} học sinh · đã dạy ${list.count { it.done }}/${list.size}" + if (earned > 0) " · " + Format.money(earned) else "",
             Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        HorizontalPager(pager, Modifier.fillMaxSize(), beyondViewportPageCount = 1) { page ->
+        val list = Rules.occurrencesOn(data, Format.today() + (page - Origin))
         if (list.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -104,10 +127,22 @@ fun TodayScreen(store: Store, data: AppData, openManage: () -> Unit) {
             items(list, key = { it.key }) { o -> SessionCard(o, onClick = { opened = o.key }) }
             item { Spacer(Modifier.height(12.dp)) }
         }
+        }
+    }
+    SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
     val current = list.firstOrNull { it.key == opened }
-    if (current != null) AttendanceSheet(store, data, current, onClose = { opened = null })
+    if (current != null) AttendanceSheet(store, data, current, onClose = { opened = null }, onDone = { o, previous, amount ->
+        scope.launch {
+            // Visible for 5 s with "Hoàn tác" that restores the session as it was.
+            val job = launch { snackbar.showSnackbar("Đã lưu " + o.group.name + " · " + Format.money(amount), actionLabel = "Hoàn tác", duration = SnackbarDuration.Indefinite)
+                .let { if (it == SnackbarResult.ActionPerformed) store.restoreRecord(o.group.id, o.originalDay, previous) } }
+            delay(5000); snackbar.currentSnackbarData?.dismiss(); job.join()
+        }
+    })
 }
+
+private const val Origin = 5000
 
 fun studentsOf(o: Occurrence) = o.group.members.size + (o.record?.guests?.keys?.count { id -> o.group.members.none { it.studentId == id } } ?: 0)
 
@@ -115,14 +150,16 @@ fun studentsOf(o: Occurrence) = o.group.members.size + (o.record?.guests?.keys?.
 @Composable
 private fun SessionCard(o: Occurrence, onClick: () -> Unit) {
     val color = Color(o.group.color)
-    val brush = androidx.compose.ui.graphics.Brush.linearGradient(listOf(color, lerpColor(color, Color.White, .28f)))
+    // Darker on the text side so white text keeps enough contrast.
+    val brush = androidx.compose.ui.graphics.Brush.linearGradient(listOf(lerpColor(color, Color.Black, .15f), lerpColor(color, Color.White, .2f)))
+    val shape = RoundedCornerShape(22.dp)
     Card(
-        Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(22.dp),
+        Modifier.fillMaxWidth().clip(shape).clickable(onClick = onClick), shape = shape,
         colors = CardDefaults.cardColors(containerColor = Color.Transparent), elevation = CardDefaults.cardElevation(if (o.done) 0.dp else 3.dp),
     ) {
-        Box(Modifier.fillMaxWidth().background(brush).padding(16.dp)) {
+        Box(Modifier.fillMaxWidth().background(brush, shape).alpha(if (o.done) .7f else 1f).padding(16.dp)) {
             Column(Modifier.fillMaxWidth().padding(end = 64.dp)) {
-                Text(Format.range(o.startMinute, o.durationMin), color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text(Format.range(o.startMinute, o.durationMin), color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 Text(o.group.name, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val type = if (o.group.type == ClassType.CENTER) "Trung tâm" else "Cá nhân"
                 Text(listOf(o.group.content, type).filter { it.isNotBlank() }.joinToString(" · ") + if (o.moved) " · dời từ " + Format.shortDay(o.originalDay) else "",
@@ -130,18 +167,21 @@ private fun SessionCard(o: Occurrence, onClick: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 PlaceTag(o.group, color)
                 Spacer(Modifier.height(8.dp))
-                Box(Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = .25f)).padding(horizontal = 12.dp, vertical = 5.dp)) {
-                    Text(if (o.done) "✓ Đã dạy · " + Format.money(Rules.earned(o.record!!)) else "Chạm để điểm danh", color = Color.White,
-                        style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                if (o.done) Box(Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = .25f)).padding(horizontal = 12.dp, vertical = 6.dp)) {
+                    Text("✓ Đã dạy · " + Format.money(Rules.earned(o.record!!)), color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                } else Box(Modifier.heightIn(min = 40.dp).clip(RoundedCornerShape(50)).background(Color.White).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center) {
+                    Text("Điểm danh →", color = color, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 }
             }
-            Column(Modifier.align(Alignment.CenterEnd), horizontalAlignment = Alignment.CenterHorizontally) {
+            if (o.group.type == ClassType.CENTER) Box(Modifier.align(Alignment.TopEnd).clip(RoundedCornerShape(10.dp)).background(Color.White).padding(horizontal = 10.dp, vertical = 6.dp)) {
+                Text(Format.money(o.group.centerFee) + "/buổi", color = color, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            } else Column(Modifier.align(Alignment.CenterEnd), horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(Modifier.size(54.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
                     Text(studentsOf(o).toString(), color = color, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleLarge)
                 }
-                Text("học sinh", color = Color.White, style = MaterialTheme.typography.labelSmall)
+                Text("học sinh", color = Color.White, fontSize = 14.sp)
             }
-            if (o.done) Box(Modifier.matchParentSize().background(Color.White.copy(alpha = .25f)))
         }
     }
 }
@@ -156,7 +196,7 @@ fun initials(name: String): String {
 /** Attendance: everyone present by default; "Xong buổi" books the money, "Hoãn" moves only this session. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AttendanceSheet(store: Store, data: AppData, o: Occurrence, onClose: () -> Unit) {
+private fun AttendanceSheet(store: Store, data: AppData, o: Occurrence, onClose: () -> Unit, onDone: (Occurrence, SessionRecord?, Long) -> Unit) {
     val names = data.students.associateBy { it.id }
     var absent by remember(o.key) { mutableStateOf(o.record?.absent?.toSet() ?: emptySet()) }
     var guests by remember(o.key) { mutableStateOf(o.record?.guests ?: emptyMap()) }
@@ -181,17 +221,18 @@ private fun AttendanceSheet(store: Store, data: AppData, o: Occurrence, onClose:
             LazyColumn(Modifier.fillMaxWidth().height((60 * rows.size.coerceIn(1, 7)).dp)) {
                 items(rows, key = { it.first }) { (id, fee, guest) ->
                     val present = id !in absent
-                    Row(Modifier.fillMaxWidth().clickable(enabled = !o.done) { absent = if (present) absent + id else absent - id }.padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clickable(enabled = !o.done) { absent = if (present) absent + id else absent - id }.padding(vertical = 6.dp)
+                        .alpha(if (present) 1f else .55f), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(names[id]?.name ?: "(đã xoá)", style = MaterialTheme.typography.bodyLarge)
                             val info = listOfNotNull(if (guest) "học ghép" else null, if (o.group.type == ClassType.PERSONAL) Format.money(fee) + "/buổi" else null)
-                            if (info.isNotEmpty()) Text(info.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = if (guest) Rose else MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (info.isNotEmpty()) Text(info.joinToString(" · "), style = MaterialTheme.typography.bodyMedium, color = if (guest) Rose else MaterialTheme.colorScheme.onSurfaceVariant,
+                                textDecoration = if (present) null else TextDecoration.LineThrough)
                         }
                         if (guest && !o.done) IconButton(onClick = { guests = guests - id; absent = absent - id; store.setGuests(o, guests) }) {
                             Icon(Icons.Default.Close, "Bỏ học ghép", tint = Muted)
                         }
-                        Text(if (present) "Có mặt" else "Vắng", color = if (present) Color(0xFF10B981) else Color(0xFFEF4444), style = MaterialTheme.typography.labelLarge)
+                        Text(if (present) "Có mặt" else "Vắng", color = if (present) MaterialTheme.colorScheme.primary else Absent, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.width(8.dp))
                         Switch(checked = present, enabled = !o.done, onCheckedChange = { absent = if (it) absent - id else absent + id })
                     }
@@ -206,7 +247,7 @@ private fun AttendanceSheet(store: Store, data: AppData, o: Occurrence, onClose:
                 AssistChip(onClick = {}, label = { Text("Đã dạy · " + Format.money(Rules.earned(o.record!!))) }, leadingIcon = { Icon(Icons.Default.CheckCircle, null) })
                 OutlinedButton(onClick = { store.reopen(o); onClose() }, modifier = Modifier.fillMaxWidth()) { Text("Mở lại buổi (bấm nhầm)") }
             } else {
-                Button(onClick = { store.markDone(o, absent); onClose() }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                Button(onClick = { val previous = o.record; store.markDone(o, absent); onClose(); onDone(o, previous, amount) }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                     Text("Xong buổi · " + Format.money(amount), style = MaterialTheme.typography.titleMedium)
                 }
                 Spacer(Modifier.height(8.dp))

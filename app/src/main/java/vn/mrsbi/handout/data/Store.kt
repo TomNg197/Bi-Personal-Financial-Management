@@ -46,6 +46,7 @@ class Store(private val context: Context) {
     var backupUri: Uri?
         get() = prefs.getString("backupUri", null)?.let(Uri::parse)
         set(value) { prefs.edit().putString("backupUri", value?.toString()).apply() }
+    val lastBackupAt: Long get() = prefs.getLong("backupAt", 0)
     var lockEnabled: Boolean
         get() = prefs.getBoolean("lock", true)
         set(value) { prefs.edit().putBoolean("lock", value).apply() }
@@ -65,6 +66,7 @@ class Store(private val context: Context) {
     private fun writeBackup(uri: Uri, text: String) {
         val status = runCatching {
             context.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(text.toByteArray()) }
+            prefs.edit().putLong("backupAt", System.currentTimeMillis()).apply()
             "Đã sao lưu lúc " + java.text.SimpleDateFormat("HH:mm dd/MM", java.util.Locale("vi")).format(java.util.Date())
         }.getOrElse { "Sao lưu lỗi: " + (it.message ?: it.javaClass.simpleName) }
         prefs.edit().putString("backupStatus", status).apply()

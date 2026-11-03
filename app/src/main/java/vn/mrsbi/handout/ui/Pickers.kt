@@ -72,7 +72,7 @@ fun TimePickerDialog(initialMinute: Int, onDismiss: () -> Unit, onPick: (Int) ->
 fun StudentPickerDialog(data: AppData, exclude: Set<String>, title: String, onDismiss: () -> Unit,
                         header: @Composable () -> Unit = {}, onPick: (Student) -> Unit) {
     var query by remember { mutableStateOf("") }
-    val list = data.students.filter { !it.archived && it.id !in exclude && it.name.contains(query.trim(), ignoreCase = true) }.sortedBy { it.name }
+    val list = data.students.filter { !it.archived && it.id !in exclude && it.name.contains(query.trim(), ignoreCase = true) }.sortedWith(compareBy(Format.byGivenName) { it.name })
     AlertDialog(onDismissRequest = onDismiss, confirmButton = {}, dismissButton = { TextButton(onClick = onDismiss) { Text("Xong") } },
         title = { Text(title) },
         text = {

@@ -68,7 +68,7 @@ fun FeesScreen(store: Store, data: AppData) {
             Text(Format.month(month), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             IconButton(onClick = { monthText = month.plusMonths(1).toString() }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Tháng sau") }
-            IconButton(onClick = { export.launch("hoc-phi-" + month + ".csv") }) { Icon(Icons.Default.FileDownload, "Xuất CSV") }
+            TextButton(onClick = { export.launch("hoc-phi-" + month + ".csv") }) { Icon(Icons.Default.FileDownload, null); Text(" CSV") }
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Stat("Phải thu", summary.total, Violet, Modifier.weight(1f))

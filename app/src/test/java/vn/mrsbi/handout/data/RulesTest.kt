@@ -82,4 +82,10 @@ class RulesTest {
         assertEquals(18 * 60, tue.startMinute); assertEquals(90, tue.durationMin)
         assertEquals(9 * 60, fri.startMinute); assertEquals(120, fri.durationMin)
     }
+
+    @Test fun studentsSortByGivenName() {
+        val names = listOf("Bùi Hà My", "Trần Bảo Ngọc", "Nguyễn Minh An", "Vũ Minh Quân", "Lê Gia Huy", "Đỗ Thảo Vy", "Hoàng Đức Anh", "Phạm Khánh Linh")
+        assertEquals(listOf("An", "Anh", "Huy", "Linh", "My", "Ngọc", "Quân", "Vy"),
+            names.sortedWith(vn.mrsbi.handout.util.Format.byGivenName).map { it.substringAfterLast(' ') })
+    }
 }

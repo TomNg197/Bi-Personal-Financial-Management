@@ -45,6 +45,11 @@ fun Store.setGuests(o: Occurrence, guests: Map<String, Long>) = update { d ->
     d.withRecord(base.copy(guests = guests))
 }
 
+/** Undo for the "Xong buổi" snackbar: put back the record exactly as it was before (or none). */
+fun Store.restoreRecord(classId: String, originalDay: Long, previous: SessionRecord?) = update { d ->
+    d.copy(sessions = d.sessions.filterNot { it.classId == classId && it.originalDay == originalDay } + listOfNotNull(previous))
+}
+
 fun Store.reopen(o: Occurrence) = update { d ->
     val record = o.record ?: return@update d
     d.withRecord(record.copy(done = false, absent = emptyList(), charges = emptyMap(), doneAt = null))

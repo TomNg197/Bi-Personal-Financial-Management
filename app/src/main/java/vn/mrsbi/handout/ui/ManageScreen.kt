@@ -66,6 +66,11 @@ import androidx.compose.ui.window.DialogProperties
 import vn.mrsbi.handout.data.AppData
 import vn.mrsbi.handout.data.ClassGroup
 import vn.mrsbi.handout.data.ClassType
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.sp
 import vn.mrsbi.handout.data.Member
 import vn.mrsbi.handout.data.DayTime
 import vn.mrsbi.handout.data.Store
@@ -96,7 +101,7 @@ fun ManageScreen(store: Store, data: AppData) {
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(c.name, fontWeight = FontWeight.SemiBold)
-                            Text(scheduleText(c) + " · " + (if (c.type == ClassType.CENTER) "Trung tâm " + Format.money(c.centerFee) + "/buổi" else "Cá nhân") + " · " + c.members.size + " HS",
+                            Text(scheduleText(c) + " · " + (if (c.type == ClassType.CENTER) "Trung tâm " + Format.money(c.centerFee) + "/buổi" else "Cá nhân · " + c.members.size + " HS"),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -104,10 +109,12 @@ fun ManageScreen(store: Store, data: AppData) {
                 }
                 item { Spacer(Modifier.height(96.dp)) }
             } else LazyColumn(Modifier.fillMaxSize()) {
-                items(data.students.filter { !it.archived }.sortedBy { it.name }, key = { it.id }) { s ->
+                items(data.students.filter { !it.archived }.sortedWith(compareBy(Format.byGivenName) { it.name }), key = { it.id }) { s ->
+                    // Avatar in the colour of the student's first class.
+                    val tint = data.classes.firstOrNull { c -> !c.archived && c.members.any { it.studentId == s.id } }?.let { Color(it.color) } ?: Violet
                     Row(Modifier.fillMaxWidth().clickable { editStudent = s }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(42.dp).clip(CircleShape).background(Color(0xFFE9E2FF)), contentAlignment = Alignment.Center) {
-                            Text(initials(s.name), color = Violet, fontWeight = FontWeight.Bold)
+                        Box(Modifier.size(42.dp).clip(CircleShape).background(tint.copy(alpha = .16f)), contentAlignment = Alignment.Center) {
+                            Text(initials(s.name), color = tint, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
@@ -226,6 +233,7 @@ private fun ClassEditor(
                             }
                         }
                     }
+                    if (c.type == ClassType.CENTER) MoneyField("Giá mỗi buổi", c.centerFee, Modifier.fillMaxWidth()) { c = c.copy(centerFee = it) }
                     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                         listOf(false, true).forEachIndexed { i, online ->
                             SegmentedButton(selected = c.online == online, onClick = { c = c.copy(online = online) }, shape = SegmentedButtonDefaults.itemShape(i, 2)) {
@@ -234,11 +242,13 @@ private fun ClassEditor(
                         }
                     }
                     if (!c.online) OutlinedTextField(c.address, { c = c.copy(address = it) }, label = { Text("Địa chỉ học") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    if (c.type == ClassType.CENTER) MoneyField("Tiền mỗi buổi dạy", c.centerFee, Modifier.fillMaxWidth()) { c = c.copy(centerFee = it) }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        ClassColors.forEach { col ->
-                            Box(Modifier.size(30.dp).clip(CircleShape).background(Color(col)).border(3.dp, if (c.color == col) Color.Black else Color.Transparent, CircleShape)
-                                .clickable { c = c.copy(color = col) })
+                    FlowRow {
+                        ClassColors.forEachIndexed { i, col ->
+                            Box(Modifier.size(48.dp).clickable { c = c.copy(color = col) }.semantics { contentDescription = "Màu " + ClassColorNames[i] }, contentAlignment = Alignment.Center) {
+                                Box(Modifier.size(40.dp).clip(CircleShape).background(Color(col)), contentAlignment = Alignment.Center) {
+                                    if (c.color == col) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                }
+                            }
                         }
                     }
                     HorizontalDivider()
@@ -249,9 +259,16 @@ private fun ClassEditor(
                         }
                         Switch(c.repeat, { c = c.copy(repeat = it) })
                     }
-                    if (c.repeat) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (c.repeat) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         (1..7).forEach { d ->
-                            FilterChip(selected = d in c.weekdays, onClick = { c = c.toggleDay(d) }, label = { Text(Format.weekdayShort(d)) })
+                            val on = d in c.weekdays
+                            Box(Modifier.weight(1f).height(48.dp).clickable { c = c.toggleDay(d) }, contentAlignment = Alignment.Center) {
+                                Box(Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(10.dp))
+                                    .background(if (on) Color(c.color) else Color.Transparent).border(1.dp, if (on) Color(c.color) else Hairline, RoundedCornerShape(10.dp)),
+                                    contentAlignment = Alignment.Center) {
+                                    Text(Format.weekdayShort(d), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = if (on) Color.White else MaterialTheme.colorScheme.onSurface)
+                                }
+                            }
                         }
                     }
                     if (c.repeat) {

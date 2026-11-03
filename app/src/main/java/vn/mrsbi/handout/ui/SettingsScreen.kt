@@ -1,5 +1,16 @@
 package vn.mrsbi.handout.ui
 
+import vn.mrsbi.handout.util.Format
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -66,13 +77,25 @@ fun SettingsScreen(store: Store, data: AppData) {
         }
         HorizontalDivider()
         Text("Sao lưu Google Drive", fontWeight = FontWeight.SemiBold)
-        Text(
-            if (backup == null) "Chưa chọn file sao lưu. Bấm nút dưới, chọn Google Drive và lưu file just-bi-backup.json. Từ đó mọi thay đổi tự ghi vào file này."
-            else "Đang sao lưu tự động vào file đã chọn.\n" + status,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Button(onClick = { create.launch("just-bi-backup.json") }, modifier = Modifier.fillMaxWidth()) { Text(if (backup == null) "Chọn nơi sao lưu (Drive)" else "Đổi file sao lưu") }
-        if (backup != null) OutlinedButton(onClick = { store.backupNow() }, modifier = Modifier.fillMaxWidth()) { Text("Sao lưu ngay") }
+        if (backup == null) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFFFFF1E0)).border(1.dp, Color(0xFFF59E0B), RoundedCornerShape(16.dp)).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Warning, null, tint = Color(0xFFB45309)); Spacer(Modifier.width(8.dp))
+                    Text("Chưa có bản sao lưu", fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
+                }
+                Text("Mất máy là mất dữ liệu. Chọn nơi lưu trên Google Drive.", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF92400E))
+                Button(onClick = { create.launch("just-bi-backup.json") }, modifier = Modifier.fillMaxWidth()) { Text("Chọn nơi sao lưu") }
+            }
+        } else {
+            val last = store.lastBackupAt
+            Text(if (last > 0 && !status.startsWith("Sao lưu lỗi")) "Sao lưu lần cuối: " + Format.lastBackup(last) else status.ifBlank { "Đang sao lưu tự động vào file đã chọn." },
+                style = MaterialTheme.typography.bodyMedium, color = if (status.startsWith("Sao lưu lỗi")) Absent else MaterialTheme.colorScheme.onSurface)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { store.backupNow() }, modifier = Modifier.weight(1f)) { Text("Sao lưu ngay") }
+                OutlinedButton(onClick = { create.launch("just-bi-backup.json") }, modifier = Modifier.weight(1f)) { Text("Đổi nơi sao lưu") }
+            }
+        }
         OutlinedButton(onClick = { pick.launch(arrayOf("application/json", "application/octet-stream", "*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Khôi phục từ file sao lưu") }
         HorizontalDivider()
         Text("Google Sheet học phí (mỗi tháng 1 tab)", fontWeight = FontWeight.SemiBold)
